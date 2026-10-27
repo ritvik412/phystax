@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhysTax Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Spectral:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #eef2f0; --sheet: #f9fbfa; --grid: #d3ded9; --ink: #1d2a33; --muted: #5a6b74;
+    --track: #2350a8; --track2: #7a3ea8; --pencil: #c2362b; --pass: #2f7d4f; --rule: #b9c8c1;
+    --serif: "Spectral", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #0f2236; --sheet: #132a42; --grid: #22476a; --ink: #e6eef5; --muted: #9fb4c6;
+            --track: #7cc6ff; --track2: #d2a6ff; --pencil: #ff7a6b; --pass: #6fd39a; --rule: #2c5279;
+            color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--sans); }
+  header { padding: 28px 32px 8px; max-width: 1240px; margin: 0 auto; }
+  h1 { font: 600 30px/1.15 var(--serif); margin: 0; letter-spacing: -0.01em; }
+  header p { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+  main { display: grid; grid-template-columns: 280px 1fr; gap: 28px; max-width: 1240px;
+         margin: 0 auto; padding: 16px 32px 64px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 20px 16px 4px; } }
+  aside { position: sticky; top: 16px; align-self: start; }
+  label { display: block; font-weight: 500; margin: 14px 0 4px; }
+  select, input { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px;
+                  background: var(--sheet); color: var(--ink); font: inherit; }
+  button { font: 600 15px var(--sans); border-radius: 6px; padding: 10px 14px; cursor: pointer;
+           border: 1px solid var(--ink); background: var(--ink); color: var(--paper); width: 100%; margin-top: 18px; }
+  button.ghost { background: transparent; color: var(--ink); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--track); outline-offset: 2px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .warn { color: var(--pencil); }
+  .step { background: var(--sheet); border-left: 3px solid var(--rule); padding: 18px 22px; margin-bottom: 18px; }
+  .step h2 { font: 600 20px/1.2 var(--serif); margin: 0 0 4px; }
+  .step .sub { color: var(--muted); margin: 0 0 12px; }
+  .step.sealed { border-left-color: var(--pencil); }
+  .step.graded { border-left-color: var(--pass); }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  figure { margin: 0; }
+  .stage { position: relative; width: 100%; aspect-ratio: 4 / 3; background:
+           repeating-linear-gradient(0deg, var(--grid) 0 1px, transparent 1px 24px),
+           repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 24px); }
+  .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .seal { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; word-break: break-all;
+          padding: 8px 10px; border: 1px dashed var(--pencil); color: var(--pencil); margin: 8px 0 12px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 500; color: var(--muted); }
+  .big { font: 600 36px/1 var(--serif); }
+  .ok { color: var(--pass); } .bad { color: var(--pencil); }
+  .runs { list-style: none; padding: 0; margin: 8px 0 0; max-height: 260px; overflow: auto; }
+  .runs li button { margin: 4px 0 0; padding: 6px 8px; font-weight: 400; font-size: 13px; text-align: left; }
+  .legend span { display: inline-block; margin-right: 14px; font-size: 13px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .empty { color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>PhysTax Lab</h1>
+  <p>An agent studies a universe with a hidden force law. It runs experiments, sees them only through
+     a camera measured by SAM 3.1, seals a prediction, and is graded against what really happens.</p>
+</header>
+<main>
+  <aside>
+    <label for="family">Physical system</label>
+    <select id="family"></select>
+    <label for="condition">What the agent can see</label>
+    <select id="condition"></select>
+    <label for="degradation">Camera quality</label>
+    <select id="degradation">
+      <option value="0">Clean</option><option value="1">Slight noise and blur</option>
+      <option value="2" selected>Noisy, blurred, low resolution</option>
+      <option value="3">Worst: occluder, flicker, dropped frames</option>
+    </select>
+    <label for="agent">Scientist</label>
+    <select id="agent"></select>
+    <label for="seed">Universe seed</label>
+    <input id="seed" type="number" value="0" min="0">
+    <button id="run">Run experiment</button>
+    <p class="note" id="backendNote"></p>
+    <label>Past runs</label>
+    <ul class="runs" id="runs"></ul>
+  </aside>
+  <section id="notebook">
+    <div class="step empty">Pick a system and run an experiment. Every step lands here as it happens.</div>
+  </section>
+</main>
+<script>
+const W = 640, H = 480, FPS = 30;
+const CHANNEL_NAMES = { oracle: "Exact coordinates (oracle)", noisy_oracle: "Coordinates with random noise",
+  sam: "Camera, SAM 3.1 tracks", sam_conf: "Camera, SAM 3.1 tracks with confidence",
+  classical: "Camera, background subtraction" };
+const FAMILY_NAMES = { central_power: "Orbit around a planet", power_drag: "Projectile with drag",
+  nonlinear_spring: "Block on a nonlinear spring" };
+let current = null, timer = null, lastKey = "";
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+async function boot() {
+  const cfg = await (await fetch("/api/config")).json();
+  for (const k of Object.keys(cfg.families)) $("family").add(new Option(FAMILY_NAMES[k] || k, k));
+  for (const c of cfg.conditions) $("condition").add(new Option(CHANNEL_NAMES[c] || c, c));
+  $("condition").value = "sam_conf";
+  for (const a of cfg.agents) {
+    const o = new Option(a.name + (a.available ? "" : " (no API key)"), a.key);
+    o.disabled = !a.available; $("agent").add(o);
+  }
+  $("backendNote").innerHTML = cfg.sam_backend === "synthetic"
+    ? '<span class="warn">SAM is simulated offline (PHYSTAX_SAM_BACKEND=synthetic). Use it to test the app, not for results.</span>'
+    : (cfg.sam_available ? "SAM 3.1 runs on Meta Model API." : '<span class="warn">Set MODEL_API_KEY to use camera channels with SAM 3.1.</span>');
+  loadRuns();
+}
+
+async function loadRuns() {
+  const runs = await (await fetch("/api/runs")).json();
+  $("runs").innerHTML = runs.length ? "" : '<li class="note">Finished runs appear here for replay.</li>';
+  for (const r of runs) {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.className = "ghost";
+    b.textContent = `${FAMILY_NAMES[r.family] || r.family}, ${r.condition}, ${r.model}: ` +
+      (r.nrmse == null ? "no score" : `${(100 * r.nrmse).toFixed(1)}% error`) + (r.sam_backend === "synthetic" ? " (synthetic)" : "");
+    b.onclick = () => { current = r.id; poll(); };
+    li.appendChild(b); $("runs").appendChild(li);
+  }
+}
+
+$("run").onclick = async () => {
+  $("run").disabled = true;
+  const body = { family: $("family").value, condition: $("condition").value,
+    degradation: +$("degradation").value, agent: $("agent").value, seed: +$("seed").value };
+  const res = await fetch("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) });
+  if (!res.ok) { $("run").disabled = false; alert("Could not start the run: " + (await res.text())); return; }
+  current = (await res.json()).id; $("notebook").innerHTML = ""; poll();
+};
+
+async function poll() {
+  clearTimeout(timer);
+  const d = await (await fetch(`/api/runs/${current}`)).json();
+  const key = current + ":" + d.ledger.length + ":" + Object.keys(d.experiments).length + ":" + d.job.status;
+  if (key !== lastKey) { lastKey = key; render(d); }   // re-render only when something changed
+  const done = d.result || d.job.status === "error";
+  if (!done) timer = setTimeout(poll, 1500);
+  else { $("run").disabled = false; loadRuns(); }
+}
+
+function byKind(ledger, k) { return ledger.filter((e) => e.kind === k); }
+
+function render(d) {
+  const nb = $("notebook"), L = d.ledger, start = byKind(L, "episode_start")[0];
+  if (!start) { nb.innerHTML = '<div class="step empty">Setting up the universe…</div>'; return; }
+  const p = start.payload, exps = byKind(L, "experiment"), commit = byKind(L, "commit")[0];
+  $("family").value = p.spec.family; $("condition").value = p.condition; $("degradation").value = p.degradation;
+  const reveal = byKind(L, "test_reveal")[0], grade = byKind(L, "grade")[0];
+  let html = `<div class="step"><h2>The question</h2>
+    <p class="sub">${p.spec.description}</p>
+    <p class="note">Channel: ${CHANNEL_NAMES[p.condition] || p.condition}. Scientist: ${p.model}.
+    The hidden law was sealed at the start: <span class="seal" style="display:block">${p.secret_law_sha256}</span></p></div>`;
+  html += `<div class="step"><h2>Experiments</h2>
+    <p class="sub">${exps.length ? "What the scientist chose to try, and what it measured." : "Waiting for the first experiment…"}</p>
+    <div class="legend" id="legend"></div><div class="clips">`;
+  for (const e of exps) {
+    const id = e.payload.exp_id, vid = e.payload.video.split(/[\\/]/).pop();
+    const params = Object.entries(e.payload.params).map(([k, v]) => `${k} ${(+v).toFixed(1)}`).join(", ");
+    html += `<figure><div class="stage"><video muted loop playsinline autoplay src="/files/${current}/${vid}" data-exp="${id}"></video>
+      <canvas width="${W}" height="${H}" data-exp="${id}"></canvas></div><figcaption>${id}: ${params}</figcaption></figure>`;
+  }
+  html += `</div></div>`;
+  if (commit) {
+    const c = commit.payload.commitment;
+    const params = (c.parameters || []).map((q) => `<tr><td>${q.name}</td><td>${(+q.value).toPrecision(5)}</td></tr>`).join("");
+    html += `<div class="step sealed"><h2>The sealed prediction</h2>
+      <p class="sub">Locked and hashed before the test was run. Nothing after this point can change it.</p>
+      <div class="seal">${commit.payload.sha256}</div>
+      <p><strong>Law:</strong> ${c.law_equation || "–"}</p><table><tr><th>Constant</th><th>Estimate</th></tr>${params}</table></div>`;
+  }
+  if (reveal) {
+    html += `<div class="step"><h2>The test</h2><p class="sub">New starting conditions the scientist never got to try.
+      Red marks are its sealed predictions; the video is what actually happened.</p><div class="clips">`;
+    reveal.payload.videos.forEach((v, i) => {
+      const name = v.split(/[\\/]/).pop();
+      html += `<figure><div class="stage"><video muted loop playsinline autoplay src="/files/${current}/${name}" data-test="${i}"></video>
+        <canvas width="${W}" height="${H}" data-test="${i}"></canvas></div><figcaption>Test ${i}</figcaption></figure>`;
+    });
+    html += `</div></div>`;
+  }
+  if (grade) {
+    const g = grade.payload, r = d.result || {};
+    const rows = Object.entries(g.parameters).map(([k, v]) =>
+      `<tr><td>${k}</td><td>${v.true == null ? "–" : (+v.true).toPrecision(5)}</td><td>${v.est == null ? "–" : (+v.est).toPrecision(5)}</td>
+       <td>${v.rel_err == null ? "–" : (100 * v.rel_err).toFixed(2) + "%"}</td></tr>`).join("");
+    html += `<div class="step graded"><h2>The grade</h2>
+      <p class="big ${g.pass ? "ok" : "bad"}">${g.prediction_nrmse == null ? "–" : (100 * g.prediction_nrmse).toFixed(2) + "%"}</p>
+      <p class="sub">Prediction error as a share of the path length. Under 5% passes. ${g.pass ? "Passed." : "Did not pass."}</p>
+      <table><tr><th>Hidden constant</th><th>True</th><th>Estimated</th><th>Error</th></tr>${rows}</table>
+      <button class="ghost" id="verify">Verify the ledger</button><p class="note" id="verifyOut"></p></div>`;
+  }
+  if (d.job.status === "error") html += `<div class="step"><h2 class="bad">The run stopped</h2><p class="sub">${d.job.error}</p></div>`;
+  nb.innerHTML = html;
+  drawLegend(d);
+  bindOverlays(d, commit);
+  const vb = $("verify");
+  if (vb) vb.onclick = async () => {
+    const v = await (await fetch(`/api/runs/${current}/verify`)).json();
+    $("verifyOut").innerHTML = v.chain_ok && v.commit_before_test
+      ? '<span class="ok">Chain intact. The prediction was sealed before the test ran.</span>'
+      : `<span class="bad">Check failed: ${v.detail}</span>`;
+  };
+}
+
+function bodyColors(names) { return Object.fromEntries(names.map((n, i) => [n, i ? css("--track2") : css("--track")])); }
+
+function drawLegend(d) {
+  const first = Object.values(d.experiments)[0]; if (!first) return;
+  const cols = bodyColors(Object.keys(first.bodies));
+  $("legend").innerHTML = Object.entries(cols).map(([n, c]) => `<span><i style="background:${c}"></i>measured ${n}</span>`).join("") +
+    `<span><i style="background:${css("--pencil")}"></i>sealed prediction</span>`;
+}
+
+function bindOverlays(d, commit) {
+  document.querySelectorAll("video[data-exp]").forEach((v) => {
+    const id = v.dataset.exp, cv = document.querySelector(`canvas[data-exp="${id}"]`), m = d.experiments[id];
+    if (m) loop(v, cv, (ctx, f) => drawTracks(ctx, m, f));
+  });
+  const preds = commit ? commit.payload.commitment.predictions || [] : [];
+  const times = (d.result && d.result.probe_times) || [];
+  document.querySelectorAll("video[data-test]").forEach((v) => {
+    const i = +v.dataset.test, cv = document.querySelector(`canvas[data-test="${i}"]`);
+    loop(v, cv, (ctx, f) => drawPredictions(ctx, preds.filter((p) => p.test_index === i), times, f));
+  });
+}
+
+function loop(video, canvas, draw) {
+  const ctx = canvas.getContext("2d");
+  const tick = () => {
+    if (!document.body.contains(canvas)) return;
+    ctx.clearRect(0, 0, W, H); draw(ctx, Math.floor(video.currentTime * FPS)); requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function drawTracks(ctx, m, frame) {
+  const cols = bodyColors(Object.keys(m.bodies));
+  for (const [name, s] of Object.entries(m.bodies)) {
+    ctx.strokeStyle = cols[name]; ctx.lineWidth = 2.5; ctx.beginPath(); let pen = false;
+    for (let f = 0; f <= Math.min(frame, s.x.length - 1); f++) {
+      if (s.x[f] == null) { pen = false; continue; }
+      const x = s.x[f], y = H - s.y[f];
+      if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    const f = Math.min(frame, s.x.length - 1);
+    if (s.x[f] != null) {
+      const c = s.conf ? (s.conf[f] ?? 0) : 1;
+      ctx.globalAlpha = 0.35 + 0.65 * c; ctx.fillStyle = cols[name];
+      ctx.beginPath(); ctx.arc(s.x[f], H - s.y[f], 7, 0, 2 * Math.PI); ctx.fill(); ctx.globalAlpha = 1;
+      if (s.conf && s.conf[f] != null) { ctx.font = "14px sans-serif"; ctx.fillText(s.conf[f].toFixed(2), s.x[f] + 10, H - s.y[f] - 10); }
+    }
+  }
+}
+
+function drawPredictions(ctx, preds, times, frame) {
+  ctx.strokeStyle = css("--pencil"); ctx.fillStyle = css("--pencil"); ctx.lineWidth = 2.5; ctx.font = "13px sans-serif";
+  for (const p of preds) p.x.forEach((x, k) => {
+    const y = H - p.y[k], shown = times[k] == null || frame >= Math.round(times[k] * FPS) - 15;
+    ctx.globalAlpha = shown ? 1 : 0.25;
+    ctx.beginPath(); ctx.moveTo(x - 7, y - 7); ctx.lineTo(x + 7, y + 7); ctx.moveTo(x + 7, y - 7); ctx.lineTo(x - 7, y + 7); ctx.stroke();
+    if (times[k] != null) ctx.fillText(`${times[k].toFixed(2)}s`, x + 9, y - 8);
+  });
+  ctx.globalAlpha = 1;
+}
+boot();
+</script>
+</body>
+</html>

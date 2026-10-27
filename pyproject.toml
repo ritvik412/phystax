@@ -1,0 +1,17 @@
+[project]
+name = "phystax"
+version = "0.1.0"
+description = "PhysTax: measuring the perception tax of an AI scientist that sees through SAM 3.1"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+include = ["phystax*"]
+
+[tool.setuptools.package-data]
+"phystax.web" = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::RuntimeWarning"]
