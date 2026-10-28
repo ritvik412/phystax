@@ -11,13 +11,8 @@ import json
 import numpy as np
 
 from ..sim.engine import Trajectory
+from ..sim.laws import key_params
 
-# Which hidden constants we score, per family (the agent is told these names).
-KEY_PARAMS = {
-    "central_power": ["alpha"],
-    "power_drag": ["g", "beta"],
-    "nonlinear_spring": ["k", "c", "b"],
-}
 
 COMMIT_SCHEMA = {
     "type": "json_schema",
@@ -83,10 +78,12 @@ def grade(commitment: dict, family: str, hidden: dict, tests: list[Trajectory],
             per_test.append({"test_index": i, "body": p["body"], "rmse_px": rmse,
                              "nrmse": rmse / extent})
 
-    # parameter recovery for the scored constants
+    # parameter recovery for the true form's constants. Agents are never told
+    # the form or its parameter names, so for agents this only scores when they
+    # happen to name a constant the same way; the primary score is prediction.
     given = {p["name"]: p["value"] for p in commitment.get("parameters", [])}
     params = {}
-    for k in KEY_PARAMS[family]:
+    for k in key_params(family, hidden["form"]):
         if k in given and hidden[k] != 0:
             params[k] = {"true": hidden[k], "est": given[k],
                          "rel_err": abs(given[k] - hidden[k]) / abs(hidden[k])}
@@ -99,4 +96,5 @@ def grade(commitment: dict, family: str, hidden: dict, tests: list[Trajectory],
         "per_test": per_test,
         "parameters": params,
         "pass": bool(nr) and float(np.mean(nr)) < 0.05,   # within 5% of path size
+        "true_form": hidden["form"],
     }

@@ -15,6 +15,15 @@ The headline question:
 That loss is the **perception tax**. This repository is the instrument for
 measuring it.
 
+**What this is, and what it is not.** It is not unsupervised learning, and no
+model is trained by reinforcement learning here. It is an *evaluation science*
+study: an LLM agent does system identification and model selection (which law,
+which constants) while its only sensor is a vision model, and we measure how
+much the sensor costs. The RL connection is real but downstream: every episode
+ends in a verifiable, numeric reward (held-out prediction error), so the same
+environment can later train scientist agents with perception in the loop, the
+way NewtonBench is now used as an RL environment in NVIDIA NeMo Gym.
+
 Built for the Meta Global AI Developer Hackathon (Push the Frontier theme), Oct 26 to Nov 4, 2026.
 
 ---
@@ -83,18 +92,25 @@ grader produces, and each has a clear way to be wrong.
 | H6 | Meta models differ as experimentalists | Muse Spark vs Muse Spark Open (vs Glimmer) on identical universes | no difference |
 
 **The decomposition (H5).** A second scientist, the *reference fitter*, is not
-an LLM. It is told the correct functional form and only fits constants by least
-squares. It cannot reason badly, so its loss on camera data is pure measurement
-tax. That gives:
+an LLM. It is told the correct functional form and only fits constants by
+weighted, robust least squares. Running it on three data sets splits every
+agent episode exactly:
 
 ```
-measurement tax = reference error (camera)  - reference error (oracle)
-reasoning tax   = agent error (camera)      - reference error (camera)
-total tax       = agent error (camera)      - reference error (oracle)
+total            = agent(camera, agent's experiments) - ref(oracle, fixed design)
+
+measurement tax  = ref(camera, fixed design)    - ref(oracle, fixed design)
+design gap       = ref(camera, agent's data)    - ref(camera, fixed design)
+reasoning tax    = agent(camera, agent's data)  - ref(camera, agent's data)
 ```
 
-When an agent fails on camera data, this tells you whether to blame the
-instrument or the scientist.
+The three terms telescope, so they sum to the total for every episode (a test
+checks this). The *reasoning tax* compares the agent with a fitter given the
+very same measurements, so it isolates what the agent lost by having to find
+the form and fit it itself. The *design gap* says whether the agent's choice of
+experiments helped or hurt compared with a fixed sensible design. Medians are
+reported with 95% bootstrap intervals; comparisons are paired, because every
+universe is run under every channel.
 
 **Pre-registration, twice.** Each prediction is hashed into an append-only
 ledger before its test exists. The benchmark protocol itself (grid, seeds,
@@ -107,6 +123,20 @@ decides early whether H3 is worth chasing at all; see the build plan.
 ## 3. What is new here
 
 Recent work has pieces of this, but not the whole loop.
+
+**Side by side with NewtonBench** (read from its repository):
+
+| | NewtonBench (ICLR 2026) | PhysTax |
+|---|---|---|
+| Scale | 324 tasks, 12 physics domains | 3 systems × 2 forms, continuous constants per seed |
+| How laws are hidden | a fixed menu of shifted laws (e.g. r^-1.5, r^-2.6) | structurally different forms, constants and exponents drawn per seed |
+| What the agent observes | numbers from the apparatus, optionally with injected relative noise | video, measured by SAM 3.1 (or the controls) |
+| Closest task | an orbital system that returns tracked positions and velocities | `central_power`: the same experiment, but positions come from a camera |
+| Grading | RMSLE on held-out data plus an LLM judge for symbolic equivalence | purely numeric: held-out trajectory error, no judge |
+| Noise finding | its README reports a 13–15% accuracy drop from noise as small as 0.0001 | the question here: what does *real* perception noise cost? |
+
+That last row is the bridge: NewtonBench shows discovery is fragile to
+synthetic noise; PhysTax measures the noise a real vision model produces.
 
 - **Interactive law discovery with clean numbers.** NewtonBench (ICLR 2026)
   has agents run experiments in simulators where physical laws have been
@@ -170,14 +200,20 @@ with and without the reviewer is itself an ablation.
 
 ## 5. The three universes
 
-Constants are drawn per seed, and the exponents are deliberately away from the
-textbook values, so the agent cannot recall the answer.
+Each system has two structurally different hidden laws. Per seed the world
+picks one and draws its constants, so the agent must choose the law (model
+selection) as well as fit it (system identification). The agent is never told
+the form, its parameter names, or even the internal family id (it sees neutral
+names: orbit, projectile, tethered block); a test enforces this.
 
-| Family | What the agent sees | Hidden law | Scored constants |
-|---|---|---|---|
-| `central_power` | a marble launched around a fixed planet | `a = -k r^(-alpha) r_hat`, alpha in [1.3, 3.1] | alpha |
-| `power_drag` | a ball launched from the lower-left corner | gravity `g` in [120, 520] px/s², drag `-gamma |v|^beta v_hat`, beta in [1.15, 2.6] | g, beta |
-| `nonlinear_spring` | a block on a rail tethered to the centre | `x'' = -k x - c x^3 - b x'` (hardening or softening) | k, c, b |
+| System | Form A | Form B |
+|---|---|---|
+| orbit (`central_power`) | power law `a = -k r^(-alpha)`, alpha in [1.3, 3.1] | screened `a = -k exp(-r/lam) / r^2`, lam in [70, 260] px |
+| projectile (`power_drag`) | gravity g in [120, 520] px/s², drag `gamma |v|^beta`, beta in [1.15, 2.6] | gravity g, drag `c1 |v| + c2 |v|^2` (Stokes + Newton) |
+| tethered block (`nonlinear_spring`) | `x'' = -k x - c x^3 - b x'` (viscous loss) | `x'' = -k x - c x^3 - mu sign(x')` (dry friction) |
+
+A wrong form shows up as wrong predictions on the held-out tests, so no judge
+is needed. Parameter recovery is scored against the true form's constants.
 
 The agent controls only the experiment parameters (launch speed, angle,
 distance, displacement), within bounds. It never sets the test conditions; the
@@ -285,7 +321,9 @@ API facts this code relies on, checked against Meta's docs and cookbooks:
 Generated with:
 `python -m phystax.bench.run_bench reference --levels 0 3 --seeds 2 --conditions oracle noisy_oracle classical`.
 Median normalised prediction error on held-out tests (lower is better), n = 2
-seeds per cell. A pilot to show the instrument works, not a result.
+seeds per cell. A pilot to show the instrument works, not a result. It was run
+before the second hidden form was added (single form per system), so treat it
+as v0.
 
 | System | Camera level | oracle | noisy_oracle | classical |
 |---|---|---|---|---|
@@ -312,7 +350,7 @@ then open a new terminal; macOS: `brew install ffmpeg`).
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-pytest -q            # 8 offline tests, no keys needed
+pytest -q            # 17 offline tests, no keys needed (about 5 minutes)
 ```
 
 ### Try everything offline first
@@ -337,7 +375,9 @@ are tagged, shown with a warning in the UI, and excluded from the report.
 3. Run, in this order:
 
 ```bash
+python scripts/day1_llm_smoke.py                                   # Day 1: chat, tools, schema, tier, price
 python scripts/day1_sam_smoke.py                                   # Day 1: does SAM work on our renders?
+python -m phystax.budget                                           # spend so far vs the cap
 python -m phystax.bench.measure_perception --seeds 3               # Day 2: H2 and H4
 python -m phystax.bench.run_bench protocol --seeds 4 --levels 0 2 3  # freeze the grid
 python -m phystax.bench.run_bench reference --seeds 4 --levels 0 2 3
@@ -352,7 +392,9 @@ The UI plays H.264 video, so use Chrome, Edge or Safari for the demo.
 
 ```
 phystax/
-  config.py               model ids, endpoints, budgets
+  config.py               model ids, endpoints (loads .env automatically)
+  budget.py               prices, pre-call checks, hard spend caps
+  doctor.py               environment self-check
   sim/
     laws.py               the three hidden-law families
     engine.py             RK4 integrator with contact rules
@@ -381,18 +423,43 @@ phystax/
     report.py             tables, including the tax decomposition
   web/
     app.py, static/index.html   live lab and replay UI
-scripts/day1_sam_smoke.py
-tests/                    8 offline tests
+scripts/day1_llm_smoke.py, scripts/day1_sam_smoke.py
+tests/                    17 offline tests
 docs/build-plan.md, docs/demo-script.md
 assets/                   optional backgrounds/ and sprites/ (CC0 photos; sprites cut out with SAM 3.1)
 ```
 
-## 12. Cost
+## 12. Cost and the budget guard
 
-SAM video is $0.20 per 1,000 frames with a 50-frame minimum per request. A
-3-second clip is 90 frames, one request per moving body: about $0.02. An agent
-episode with up to six experiments costs well under $0.25 in SAM. The test clips
-are graded against simulator truth and need no SAM call.
+Prices from the Meta Model API Models tab (Oct 28, 2026), per 1M tokens:
+
+| Model | Input | Cached input | Output |
+|---|---|---|---|
+| Muse Spark 1.3 | $1.25 | $0.15 | $4.25 |
+| Muse Spark 1.3 Contributor | $0.10 | $0.002 | $0.20 |
+| Muse Wonder 1.0 | $4.00 | $0.20 | $20.00 |
+| SAM 3.1 video | $0.20 per 1,000 frames (50-frame minimum) | | |
+
+`phystax/budget.py` checks the estimated cost of every chat and SAM call before
+sending it and records the real cost after, in `runs/spend.jsonl`. It refuses
+calls that would cross the cap (default $120 of the $150 Meta credits, and $90
+of the $100 Baseten credits). `python -m phystax.budget` prints the running
+total. The contributor tier is about 12× cheaper; it is "available in select
+countries", so the agent tries it first and falls back to standard once if
+refused. While free credits are in use, content may be used for product
+improvement on either tier, so contributor costs nothing extra in privacy.
+
+Rough plan for the $150, assuming the standard tier (contributor is far cheaper):
+
+| Phase | Calls | Estimate |
+|---|---|---|
+| Day 1 smoke tests | 4 SAM clips + ~6 chat calls | < $0.50 |
+| Day 2 perception study | ~140 SAM requests (3 seeds × 4 levels) | ~ $3 |
+| Agent grid, Muse Spark | 36 episodes (3 systems × 4 seeds × 3 channels) | ~ $15–25 |
+| Wonder reviewer ablation | 12 reviews | ~ $1–2 |
+| Reruns, demo, buffer | | the rest |
+
+Every SAM call is cached by content hash, so reruns and replays cost nothing.
 
 For bulk benchmark runs, the Muse Spark contributor tier is much cheaper per
 token; Meta may train on that traffic, which is acceptable for synthetic physics

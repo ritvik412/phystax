@@ -14,7 +14,7 @@ import os
 import time
 
 from ..config import FPS, MAX_AGENT_TURNS, RUNS_DIR
-from ..grader.grade import COMMIT_SCHEMA, KEY_PARAMS, commitment_hash, grade, probe_times
+from ..grader.grade import COMMIT_SCHEMA, commitment_hash, grade, probe_times
 from ..bench.conditions import sam_backend
 from ..grader.ledger import Ledger
 from ..sim.world import World
@@ -45,8 +45,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
     if os.path.exists(ledger_path):          # one ledger per episode: re-runs start fresh
         os.remove(ledger_path)
     ledger = Ledger(ledger_path)
-    key_params = KEY_PARAMS[family]
-    ledger.append("episode_start", {"spec": world.spec(), "condition": condition,
+    ledger.append("episode_start", {"family": family, "spec": world.spec(), "condition": condition,
                                     "model": model.spec.model_id, "degradation": degradation,
                                     "sam_backend": sam_backend() if condition.startswith("sam") else None,
                                     "secret_law_sha256": world.secret_commitment()})
@@ -54,7 +53,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
                     noise_sigma_px)
 
     messages = [{"role": "system", "content": prompts.SYSTEM},
-                {"role": "user", "content": prompts.task_message(world.spec(), condition, key_params)}]
+                {"role": "user", "content": prompts.task_message(world.spec(), condition)}]
     t0 = time.time()
 
     # ---- step 1: exploration (tool_choice stays "auto") ------------------
@@ -77,7 +76,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
     times = probe_times(TEST_DURATION_S)
     moving = [b for i, b in enumerate(world.family.bodies) if i not in world.family.fixed_bodies]
     messages.append({"role": "user", "content": prompts.commit_message(
-        world.test_conditions(), times, moving, key_params)})
+        world.test_conditions(), times, moving)})
     commitment = _commit(model, messages)
 
     if review and reviewer is not None:
@@ -109,6 +108,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
         "score": score, "usage": vars(model.usage) | {"log": None},
         "perception": tools.diagnostics, "ledger_ok": ok and ledger.commit_precedes_test(),
         "ledger_msg": why, "run_dir": world.run_dir, "probe_times": times,
+        "true_form": world.hidden["form"], "cost_usd": round(getattr(model, "cost_usd", 0.0), 4),
     }
     json.dump(result, open(os.path.join(world.run_dir, "result.json"), "w"), indent=2, default=str)
     return result

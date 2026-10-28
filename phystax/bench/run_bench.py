@@ -19,7 +19,8 @@ import json
 import os
 import traceback
 
-from .reference import DESIGNS, run_reference
+from .. import budget
+from .reference import DESIGNS, refit_episode, run_reference
 
 
 def _save(rows: list[dict], path: str) -> None:
@@ -45,11 +46,13 @@ def cmd_reference(a) -> None:
             for seed in range(a.seed_start, a.seed_start + a.seeds):
                 for cond in a.conditions:
                     try:
-                        r = run_reference(fam, seed, cond, lvl,
-                                          run_dir=f"runs/reference/{fam}_d{lvl}_s{seed}_{cond}")
+                        r = run_reference(fam, seed, cond, lvl, design=a.design,
+                                          run_dir=f"runs/reference/{fam}_d{lvl}_s{seed}_{cond}_{a.design}")
                         s = r["score"]
                         row = {"kind": "reference", "family": fam, "level": lvl, "seed": seed,
                                "condition": cond, "nrmse": s["prediction_nrmse"],
+                               "design": a.design, "weighting": r["weighting"],
+                               "true_form": r["true_form"],
                                "sam_backend": r["sam_backend"],
                                "pass": s["pass"],
                                "param_rel_err": {k: v["rel_err"] for k, v in s["parameters"].items()}}
@@ -77,6 +80,8 @@ def cmd_agent(a) -> None:
                                 "family", "seed", "degradation", "condition", "n_experiments",
                                 "wall_s", "ledger_ok", "sam_backend")},
                                 "nrmse": r["score"]["prediction_nrmse"], "pass": r["score"]["pass"],
+                                "true_form": r["true_form"], "cost_usd": r["cost_usd"],
+                                "ref_on_agent": refit_episode(r["run_dir"]),
                                 "param_rel_err": {k: v["rel_err"] for k, v in r["score"]["parameters"].items()},
                                 "usage": r["usage"]}
                         except Exception as exc:
@@ -85,6 +90,10 @@ def cmd_agent(a) -> None:
                                    "trace": traceback.format_exc()[-800:]}
                         print({k: v for k, v in row.items() if k != "trace"})
                         _save([row], a.out)
+                        if isinstance(row.get("error"), str) and "BudgetExceeded" in row["error"]:
+                            print("Budget cap reached; stopping the grid.", budget.summary())
+                            return
+    print(budget.summary())
 
 
 def main() -> None:
@@ -103,6 +112,7 @@ def main() -> None:
         p.add_argument("--conditions", nargs="+", default=default_conds)
         p.add_argument("--models", nargs="+", default=["spark", "spark-open"])
         p.add_argument("--review", action="store_true")
+        p.add_argument("--design", choices=["designed", "random"], default="designed")
         p.add_argument("--out", default=f"runs/{name}.jsonl")
         p.set_defaults(func=fn)
     a = ap.parse_args()

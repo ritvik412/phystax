@@ -39,6 +39,7 @@ class World:
     seed: int
     degradation: int = 0
     run_dir: str = ""
+    form: str | None = None          # force a form; None = drawn from the seed
     hidden: dict = field(default_factory=dict)
     experiments: list[Experiment] = field(default_factory=list)
     test_params: list[dict] = field(default_factory=list)
@@ -46,7 +47,7 @@ class World:
     def __post_init__(self) -> None:
         self.family: LawFamily = FAMILIES[self.family_name]
         rng = np.random.default_rng(self.seed)
-        self.hidden = self.family.sample_hidden(rng)
+        self.hidden = self.family.sample_hidden(rng, self.form)
         self.test_params = self._sample_tests(rng, 2)
         self.run_dir = self.run_dir or os.path.join(
             RUNS_DIR, f"{self.family_name}_s{self.seed}_d{self.degradation}")

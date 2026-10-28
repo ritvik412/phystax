@@ -5,6 +5,10 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from .env import load_dotenv
+
+load_dotenv()
+
 META_BASE_URL = "https://api.meta.ai/v1"
 BASETEN_BASE_URL = "https://inference.baseten.co/v1"
 
@@ -18,12 +22,16 @@ class AgentModel:
     model_id: str
     vision: bool       # can it look at frames? (Glimmer: False today)
     reasoning_effort: str | None = "medium"
+    fallback_id: str | None = None   # used if model_id is refused (e.g. region-limited tier)
 
 
-# Contributor tier is ~12x cheaper on input. Synthetic benchmark data is not
-# private, so use it for the bulk runs and the standard tier for the live demo.
+# Contributor tier: $0.10/$0.20 per 1M tokens vs $1.25/$4.25 standard, but
+# "available in select countries". While free credits are in use the content
+# may be used for product improvement anyway, so contributor costs nothing
+# extra in privacy. If the API refuses it, we fall back to standard once.
 AGENT_MODELS: dict[str, AgentModel] = {
-    "spark": AgentModel("Muse Spark 1.3", "meta", "muse-spark-1.3-contributor", True),
+    "spark": AgentModel("Muse Spark 1.3", "meta", "muse-spark-1.3-contributor", True,
+                        fallback_id="muse-spark-1.3"),
     "spark-std": AgentModel("Muse Spark 1.3 (std)", "meta", "muse-spark-1.3", True),
     "wonder": AgentModel("Muse Wonder 1.0", "meta", "muse-wonder-1.0", True),
     # Hackathon override from the participant guide: use the -1026 slug.

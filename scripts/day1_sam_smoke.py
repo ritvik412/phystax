@@ -24,14 +24,15 @@ for fam in ["power_drag", "nonlinear_spring", "central_power"]:
     w = World(fam, seed=0, degradation=0, run_dir=f"runs/smoke/{fam}")
     exp = w.run_experiment(DESIGNS[fam][1], 3.0)
     for i, body in enumerate(w.family.bodies):
-        call = segment_video(exp.video_path, body, include_confidence=True, use_cache=False)
+        call = segment_video(exp.video_path, body, include_confidence=True, use_cache=False,
+                             n_frames=exp.n_frames)
         mode = "largest" if i in w.family.fixed_bodies else "moving"
         tr = build_track(body, call.records, exp.n_frames, FRAME_H, mode)
         err = centroid_error_px(tr, exp.traj.xy[:, i, :])
         confs = [r.confidence for r in call.records if getattr(r, "confidence", None) is not None]
         row = {"family": fam, "body": body, "latency_s": round(call.latency_s, 2),
                "frames_billed": call.frames_billed, "est_cost_usd": estimated_cost_usd(exp.n_frames),
-               "records": len(call.records), "instances": tr.n_candidates,
+               "usd": round(call.usd, 4), "records": len(call.records), "instances": tr.n_candidates,
                "confidence_returned": bool(confs), "diagnostics": [str(d) for d in call.diagnostics][:3],
                **err}
         report.append(row)

@@ -25,22 +25,23 @@ Method:
 Rules: you cannot see the true law or any test outcome. Report numbers, not guesses."""
 
 
-def task_message(spec: dict, condition: str, key_params: list[str]) -> str:
+def task_message(spec: dict, condition: str) -> str:
     return (f"System under study:\n{json.dumps(spec, indent=2)}\n\n"
             f"Measurement channel: {CHANNEL_NOTES[condition]}\n\n"
-            f"At the end you must report these constants by name: {key_params}, "
-            f"and predict positions for held-out initial conditions. Begin.")
+            "The functional form of the law is unknown: several structurally different laws "
+            "are plausible. At the end you will state the law you infer, its constants, and "
+            "predict positions for held-out initial conditions. Begin.")
 
 
-def commit_message(tests: list[dict], times: list[float], bodies: list[str],
-                   key_params: list[str]) -> str:
+def commit_message(tests: list[dict], times: list[float], bodies: list[str]) -> str:
     return (
         "Exploration is closed. Pre-register your prediction now; it will be hashed and locked "
         "before the test runs.\n"
         f"Held-out test initial conditions (by test_index): {json.dumps(tests)}\n"
         f"Predict x and y (world px, y up) for each moving body in {bodies} at exactly these times "
         f"(seconds): {times}. One prediction object per (test_index, body), with len(x)=len(y)={len(times)}.\n"
-        f"Report parameters including {key_params}. Use numbers you computed, not estimates from memory."
+        "Give the law as an equation, list its constants with short names, and use numbers you "
+        "computed from your fits, not estimates from memory."
     )
 
 

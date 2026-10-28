@@ -70,24 +70,47 @@ def table_agent(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
+def _boot_median_ci(xs, n_boot=2000, seed=0):
+    import numpy as np
+    xs = np.asarray(xs, float)
+    if len(xs) < 2:
+        return (float(xs[0]), float(xs[0])) if len(xs) else (None, None)
+    rng = np.random.default_rng(seed)
+    meds = np.median(rng.choice(xs, (n_boot, len(xs)), replace=True), axis=1)
+    return float(np.quantile(meds, 0.025)), float(np.quantile(meds, 0.975))
+
+
+def _cell(xs):
+    if not xs:
+        return "–"
+    lo, hi = _boot_median_ci(xs)
+    return f"{median(xs):.4f} [{lo:.4f}, {hi:.4f}]"
+
+
 def table_decomposition(ref: list[dict], agent: list[dict]) -> str:
-    r_idx = {(r["family"], r["level"], r["seed"], r["condition"]): r["nrmse"] for r in ref}
-    acc = defaultdict(lambda: {"measure": [], "reason": [], "total": []})
+    """Exact telescoping split per episode, medians with 95% bootstrap CIs
+    (episodes are paired: same universe under every channel)."""
+    r_idx = {(r["family"], r["level"], r["seed"], r["condition"]): r["nrmse"]
+             for r in ref if r.get("design", "designed") == "designed"}
+    acc = defaultdict(lambda: {"measure": [], "design": [], "reason": [], "total": []})
     for a in agent:
         k = (a["family"], a["degradation"], a["seed"])
-        ref_c = r_idx.get(k + (a["condition"],))
-        ref_o = r_idx.get(k + ("oracle",))
-        if ref_c is None or ref_o is None:
+        ref_c, ref_o = r_idx.get(k + (a["condition"],)), r_idx.get(k + ("oracle",))
+        on_agent = (a.get("ref_on_agent") or {}).get("nrmse")
+        if None in (ref_c, ref_o, on_agent):
             continue
         d = acc[(a["model"], a["condition"])]
         d["measure"].append(ref_c - ref_o)
-        d["reason"].append(a["nrmse"] - ref_c)
+        d["design"].append(on_agent - ref_c)
+        d["reason"].append(a["nrmse"] - on_agent)
         d["total"].append(a["nrmse"] - ref_o)
-    out = ["| model | channel | measurement tax | reasoning tax | total tax | n |",
-           "|---|---|---|---|---|---|"]
+    out = ["| model | channel | measurement tax | design gap | reasoning tax | total | n |",
+           "|---|---|---|---|---|---|---|"]
     for (m, c), d in sorted(acc.items()):
-        out.append(f"| {m} | {c} | {fmt(median(d['measure']))} | {fmt(median(d['reason']))} | "
-                   f"{fmt(median(d['total']))} | {len(d['total'])} |")
+        out.append(f"| {m} | {c} | {_cell(d['measure'])} | {_cell(d['design'])} | "
+                   f"{_cell(d['reason'])} | {_cell(d['total'])} | {len(d['total'])} |")
+    out.append("\nMedian [95% bootstrap CI] of normalised prediction error differences. "
+               "The three terms sum to the total per episode.")
     return "\n".join(out)
 
 
@@ -107,7 +130,7 @@ def main() -> None:
               "Median normalised prediction error on held-out tests (lower is better).\n",
               table_reference(ref) if ref else "_no reference runs yet_", "",
               "## 2. Agents\n", table_agent(agent) if agent else "_no agent runs yet_", "",
-              "## 3. Decomposition (total = measurement + reasoning)\n",
+              "## 3. Decomposition (total = measurement + design + reasoning)\n",
               table_decomposition(ref, agent) if (ref and agent) else "_needs both grids_"]
     text = "\n".join(parts) + "\n"
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)

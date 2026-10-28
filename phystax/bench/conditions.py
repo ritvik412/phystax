@@ -67,7 +67,8 @@ def measure(exp: Experiment, condition: str, fixed_bodies: set[int],
         from ..perception.sam_client import segment_video
         diag["sam_backend"] = "api"
         for i, b in enumerate(bodies):
-            call = segment_video(exp.video_path, b, include_confidence=True)   # cached; same call for both
+            call = segment_video(exp.video_path, b, include_confidence=True,
+                                 n_frames=exp.n_frames)   # cached; one call serves sam and sam_conf
             mode = "largest" if i in fixed_bodies else "moving"
             tr = build_track(b, call.records, exp.n_frames, FRAME_H, mode)
             out["bodies"][b] = tr.to_jsonable(include_conf=(condition == "sam_conf"))

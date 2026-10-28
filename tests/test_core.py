@@ -59,7 +59,8 @@ def test_grader_scores_truth_as_perfect():
         idx = [int(round(t * 30)) for t in times]
         preds.append({"test_index": i, "body": "block",
                       "x": tr.xy[idx, 0, 0].tolist(), "y": tr.xy[idx, 0, 1].tolist()})
-    c = {"parameters": [{"name": k, "value": v} for k, v in w.hidden.items()], "predictions": preds}
+    c = {"parameters": [{"name": k, "value": v} for k, v in w.hidden.items() if k != "form"],
+         "predictions": preds}
     s = grade(c, "nonlinear_spring", w.hidden, tests, times, 30)
     assert s["pass"] and s["prediction_nrmse"] < 1e-9
 

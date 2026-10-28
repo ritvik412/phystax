@@ -161,7 +161,7 @@ function render(d) {
   const nb = $("notebook"), L = d.ledger, start = byKind(L, "episode_start")[0];
   if (!start) { nb.innerHTML = '<div class="step empty">Setting up the universe…</div>'; return; }
   const p = start.payload, exps = byKind(L, "experiment"), commit = byKind(L, "commit")[0];
-  $("family").value = p.spec.family; $("condition").value = p.condition; $("degradation").value = p.degradation;
+  $("family").value = p.family || p.spec.family; $("condition").value = p.condition; $("degradation").value = p.degradation;
   const reveal = byKind(L, "test_reveal")[0], grade = byKind(L, "grade")[0];
   let html = `<div class="step"><h2>The question</h2>
     <p class="sub">${p.spec.description}</p>
