@@ -114,6 +114,31 @@ def table_decomposition(ref: list[dict], agent: list[dict]) -> str:
     return "\n".join(out)
 
 
+def table_uncertainty_and_passk(agent: list[dict], ref: list[dict]) -> str:
+    """Calibration of committed 80% intervals (coverage should be about 0.80;
+    the interval score is a proper scoring rule, lower is better) and pass@K
+    over repeated attempts on the same universe (needs --repeats K > 1)."""
+    groups = defaultdict(list)
+    for r in agent:
+        groups[(r["model"], r["condition"])].append(r)
+    for r in ref:
+        groups[("reference", r["condition"])].append(r)
+    out = ["| scientist | channel | 80% coverage | interval score | pass@1 | pass@K (K) | n |",
+           "|---|---|---|---|---|---|---|"]
+    for (m, c), rs in sorted(groups.items()):
+        cov = [r["coverage_80"] for r in rs if r.get("coverage_80") is not None]
+        isc = [r["interval_score"] for r in rs if r.get("interval_score") is not None]
+        universes = defaultdict(list)
+        for r in rs:
+            universes[(r["family"], r.get("degradation", r.get("level")), r["seed"])].append(bool(r["pass"]))
+        k = max((len(v) for v in universes.values()), default=1)
+        p1 = sum(v[0] for v in universes.values()) / max(len(universes), 1)
+        pk = sum(any(v) for v in universes.values()) / max(len(universes), 1)
+        out.append(f"| {m} | {c} | {fmt(median(cov)) if cov else '–'} | {fmt(median(isc)) if isc else '–'} | "
+                   f"{fmt(p1, True)} | {fmt(pk, True)} ({k}) | {len(rs)} |")
+    return "\n".join(out)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reference", default="runs/reference.jsonl")
@@ -131,7 +156,9 @@ def main() -> None:
               table_reference(ref) if ref else "_no reference runs yet_", "",
               "## 2. Agents\n", table_agent(agent) if agent else "_no agent runs yet_", "",
               "## 3. Decomposition (total = measurement + design + reasoning)\n",
-              table_decomposition(ref, agent) if (ref and agent) else "_needs both grids_"]
+              table_decomposition(ref, agent) if (ref and agent) else "_needs both grids_", "",
+              "## 4. Uncertainty and repeatability\n",
+              table_uncertainty_and_passk(agent, ref) if (ref or agent) else "_no runs yet_"]
     text = "\n".join(parts) + "\n"
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     open(a.out, "w").write(text)

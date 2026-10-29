@@ -51,6 +51,8 @@ def cmd_reference(a) -> None:
                         s = r["score"]
                         row = {"kind": "reference", "family": fam, "level": lvl, "seed": seed,
                                "condition": cond, "nrmse": s["prediction_nrmse"],
+                               "interval_score": s.get("interval_score_norm"),
+                               "coverage_80": s.get("coverage_80"),
                                "design": a.design, "weighting": r["weighting"],
                                "true_form": r["true_form"],
                                "sam_backend": r["sam_backend"],
@@ -69,17 +71,23 @@ def cmd_agent(a) -> None:
     reviewer = ChatModel("wonder") if a.review else None
     for key in a.models:
         model = ChatModel(key)
+        if model.spec.provider == "local":
+            from ..provenance import snapshot
+            print("provenance:", snapshot(f"bench_{key}"))
         for fam in a.families:
             for lvl in a.levels:
                 for seed in range(a.seed_start, a.seed_start + a.seeds):
+                  for rep in range(a.repeats):
                     for cond in a.conditions:
                         try:
                             r = run_episode(fam, seed, cond, model, lvl, review=a.review,
-                                            reviewer=reviewer)
-                            row = {"kind": "agent", "model": key, **{k: r[k] for k in (
+                                            reviewer=reviewer, tag=f"_r{rep}" if a.repeats > 1 else "")
+                            row = {"kind": "agent", "model": key, "repeat": rep, **{k: r[k] for k in (
                                 "family", "seed", "degradation", "condition", "n_experiments",
                                 "wall_s", "ledger_ok", "sam_backend")},
                                 "nrmse": r["score"]["prediction_nrmse"], "pass": r["score"]["pass"],
+                                "interval_score": r["score"].get("interval_score_norm"),
+                                "coverage_80": r["score"].get("coverage_80"),
                                 "true_form": r["true_form"], "cost_usd": r["cost_usd"],
                                 "ref_on_agent": refit_episode(r["run_dir"]),
                                 "param_rel_err": {k: v["rel_err"] for k, v in r["score"]["parameters"].items()},
@@ -110,7 +118,8 @@ def main() -> None:
         p.add_argument("--seeds", type=int, default=4)
         p.add_argument("--seed-start", type=int, default=0)
         p.add_argument("--conditions", nargs="+", default=default_conds)
-        p.add_argument("--models", nargs="+", default=["spark", "spark-open"])
+        p.add_argument("--models", nargs="+", default=["spark"])
+        p.add_argument("--repeats", type=int, default=1, help="attempts per universe (pass@K)")
         p.add_argument("--review", action="store_true")
         p.add_argument("--design", choices=["designed", "random"], default="designed")
         p.add_argument("--out", default=f"runs/{name}.jsonl")

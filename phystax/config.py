@@ -38,9 +38,12 @@ AGENT_MODELS: dict[str, AgentModel] = {
     "spark-open": AgentModel("Muse Spark Open (Baseten)", "baseten",
                              "meta-models/muse-spark-open-1026", True, "high"),
     # Text + tools only; fill in the endpoint you actually serve it from.
-    "glimmer": AgentModel("Muse Glimmer 30B", "local",
-                          os.environ.get("GLIMMER_MODEL_ID", "meta-models/Muse-Glimmer-30B"),
-                          False, None),
+    # Self-hosted on your own GPU with vLLM (scripts/serve_glimmer.sh). The id is
+    # the --served-model-name. Text + tools only; reasoning arrives in
+    # message.reasoning (not reasoning_content). One tool call per message.
+    "glimmer": AgentModel("Muse Glimmer 30B (self-hosted)", "local",
+                          os.environ.get("GLIMMER_MODEL_ID", "muse-glimmer"),
+                          False, "medium"),
 }
 
 REVIEWER_MODEL = "wonder"

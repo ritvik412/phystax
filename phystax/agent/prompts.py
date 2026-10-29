@@ -41,7 +41,10 @@ def commit_message(tests: list[dict], times: list[float], bodies: list[str]) -> 
         f"Predict x and y (world px, y up) for each moving body in {bodies} at exactly these times "
         f"(seconds): {times}. One prediction object per (test_index, body), with len(x)=len(y)={len(times)}.\n"
         "Give the law as an equation, list its constants with short names, and use numbers you "
-        "computed from your fits, not estimates from memory."
+        "computed from your fits, not estimates from memory. For every predicted point also give a "
+        "central 80% prediction interval (x_lo, x_hi, y_lo, y_hi): the truth should fall inside about "
+        "80% of the time. Intervals are scored with a proper scoring rule, so too narrow and too wide "
+        "both cost you; derive them from your fit uncertainty and measurement noise."
     )
 
 

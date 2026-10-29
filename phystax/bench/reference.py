@@ -99,7 +99,7 @@ def _weights(conf: list | None, n: int, mode: str, calib: list | None) -> np.nda
 
 
 def fit(world: World, measured: list[tuple[dict, dict]], weighting: str = "uniform",
-        calib: list | None = None) -> dict:
+        calib: list | None = None, return_solution: bool = False):
     fam = world.family
     form = fam.forms[world.hidden["form"]]
     moving = [i for i in range(len(fam.bodies)) if i not in fam.fixed_bodies]
@@ -137,20 +137,56 @@ def fit(world: World, measured: list[tuple[dict, dict]], weighting: str = "unifo
             best = sol
         if best.cost < 1e-8 * total_len:     # exact fit found; other starts cannot do better
             break
-    return _decode(form, best.x)
+    est = _decode(form, best.x)
+    return (est, best) if return_solution else est
 
 
-def _predict(world: World, est: dict) -> tuple[list, list]:
+def param_samples(world: World, sol, n: int = 40, seed: int = 0) -> list[dict]:
+    """Laplace approximation: cov = s^2 (J^T J)^-1 in the fitting space, with
+    s^2 the residual variance. Sampling it and simulating each sample gives
+    prediction intervals that reflect how well the data pinned the constants."""
+    form = world.family.forms[world.hidden["form"]]
+    J = np.asarray(sol.jac, float)
+    m, k = J.shape
+    s2 = 2.0 * sol.cost / max(m - k, 1)
+    cov = np.linalg.pinv(J.T @ J) * s2
+    if not np.all(np.isfinite(cov)):
+        return []
+    rng = np.random.default_rng(seed)
+    U = rng.multivariate_normal(sol.x, cov, size=n, check_valid="ignore", method="eigh")
+    return [_decode(form, u) for u in U]
+
+
+def _predict(world: World, est: dict, samples: list[dict] | None = None) -> tuple[list, list]:
+    """Point predictions from `est`; central 80% intervals from `samples`
+    (10th-90th percentile of simulated positions), widened to contain the point."""
     times = probe_times(TEST_S)
     fam = world.family
+    n = int(TEST_S * FPS)
     preds = []
     for i, p in enumerate(world.test_conditions()):
-        tr = simulate(fam, est, p, int(TEST_S * FPS))
+        tr = simulate(fam, est, p, n)
         idx = [min(len(tr.t) - 1, int(round(t * FPS))) for t in times]
+        sims = []
+        for h in samples or []:
+            st = simulate(fam, h, p, n)
+            if len(st.t) == n and np.all(np.isfinite(st.xy)):
+                sims.append(st.xy[idx])
         for b_i, b in enumerate(fam.bodies):
-            if b_i not in fam.fixed_bodies:
-                preds.append({"test_index": i, "body": b,
-                              "x": tr.xy[idx, b_i, 0].tolist(), "y": tr.xy[idx, b_i, 1].tolist()})
+            if b_i in fam.fixed_bodies:
+                continue
+            x, y = tr.xy[idx, b_i, 0], tr.xy[idx, b_i, 1]
+            if len(sims) >= 5:
+                S = np.stack(sims)[:, :, b_i, :]
+                lo, hi = np.quantile(S, 0.1, axis=0), np.quantile(S, 0.9, axis=0)
+                x_lo, x_hi = np.minimum(lo[:, 0], x), np.maximum(hi[:, 0], x)
+                y_lo, y_hi = np.minimum(lo[:, 1], y), np.maximum(hi[:, 1], y)
+            else:
+                x_lo = x_hi = x
+                y_lo = y_hi = y
+            preds.append({"test_index": i, "body": b, "x": x.tolist(), "y": y.tolist(),
+                          "x_lo": list(map(float, x_lo)), "x_hi": list(map(float, x_hi)),
+                          "y_lo": list(map(float, y_lo)), "y_hi": list(map(float, y_hi))})
     return preds, times
 
 
@@ -199,8 +235,9 @@ def run_reference(family: str, seed: int, condition: str, degradation: int = 0,
                                      "video": exp.video_path, "condition": condition})
     os.makedirs(os.path.join(world.run_dir, "sandbox"), exist_ok=True)
     json.dump(shown_all, open(os.path.join(world.run_dir, "sandbox", "experiments.json"), "w"))
-    est = fit(world, measured, weighting, load_calibration())
-    preds, times = _predict(world, est)
+    est, sol = fit(world, measured, weighting, load_calibration(), return_solution=True)
+    preds, times = _predict(world, est, param_samples(
+        world, sol, n=int(os.environ.get("PHYSTAX_INTERVAL_SAMPLES", "40")), seed=seed))
     commitment = {"law_equation": world.family.forms[world.hidden["form"]].equation + " (given)",
                   "parameters": [{"name": k, "value": float(v)} for k, v in est.items() if k != "form"],
                   "predictions": preds, "self_confidence": 1.0,

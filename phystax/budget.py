@@ -22,6 +22,7 @@ PRICES = {  # model_id: (input, cached_input, output) per 1M tokens
     "muse-spark-1.2": (1.25, 0.15, 4.25),
     "muse-spark-1.2-contributor": (0.10, 0.002, 0.20),
     "muse-wonder-1.0": (4.00, 0.20, 20.00),
+    "muse-glimmer": (0.0, 0.0, 0.0),            # self-hosted: no credits used
     # Baseten list price; confirm on your Baseten dashboard before the full grid
     "meta-models/muse-spark-open-1026": (1.25, 1.25, 4.25),
 }

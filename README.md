@@ -89,7 +89,8 @@ grader produces, and each has a clear way to be wrong.
 | H3 | Using confidence recovers part of the tax | `sam_conf` vs `sam`, same videos, same tracks | no improvement, or worse |
 | H4 | SAM 3.1 beats a classical tracker on cluttered, degraded scenes | `sam` vs `classical` | classical matches or wins |
 | H5 | Most of the tax is measurement, not reasoning (or the reverse) | the decomposition below | either way is a finding |
-| H6 | Meta models differ as experimentalists | Muse Spark vs Muse Spark Open (vs Glimmer) on identical universes | no difference |
+| H6 | Meta models differ as experimentalists | Muse Spark vs Muse Wonder vs self-hosted Muse Glimmer on identical universes | no difference |
+| H7 | AI scientists know how wrong they are | coverage of committed 80% intervals (target 0.80) and the interval score | coverage far from 0.80, or intervals no better than a constant width |
 
 **The decomposition (H5).** A second scientist, the *reference fitter*, is not
 an LLM. It is told the correct functional form and only fits constants by
@@ -245,6 +246,17 @@ requested, then hidden for `sam`), so the comparison is exact and costs half.
 - **No LLM judge.** The grader compares committed numbers with the simulator's
   trajectory: normalised RMSE of predicted positions at six probe times, plus
   relative error on each scored constant. A run passes under 5% error.
+- **Uncertainty is graded too.** Every predicted point comes with a central 80%
+  interval. These are scored with the interval score (Gneiting & Raftery 2007),
+  a proper scoring rule: you minimise it only by reporting your true
+  uncertainty, so overconfident and needlessly vague intervals both lose. We
+  also report coverage, which should be about 0.80 for a calibrated scientist.
+  The reference fitter derives its intervals from its own fit: it samples the
+  constants from the least-squares (Laplace) covariance and simulates each.
+- **Repeatability.** `--repeats K` runs K independent attempts per universe and
+  reports pass@1 and pass@K, so a single lucky or unlucky run cannot carry a
+  claim (motivated by Meta's *Sharpening Tax*, which shows single-shot and
+  many-attempt performance can diverge).
 - **The law is sealed at the start.** The world publishes a SHA-256 of the
   hidden law before the first experiment and reveals the law only after grading,
   so anyone can check it did not change.
@@ -268,7 +280,7 @@ Every model has a job that would break the system if removed.
 | **Muse Spark 1.3** | the experimentalist | designs experiments, writes fitting code, commits predictions |
 | **Muse Spark Open** (Baseten, `meta-models/muse-spark-open-1026`) | second experimentalist | the open-weight arm of H6 (and the open-weight bonus prize) |
 | **Muse Wonder** | independent reviewer | challenges the draft before it is sealed; with/without is an ablation |
-| **Muse Glimmer 30B** (optional) | third experimentalist, text and tools only | the agent receives numbers, not pixels, so Glimmer can take part even without vision |
+| **Muse Glimmer 30B** (self-hosted on our own H100) | third experimentalist, text and tools only | the agent receives numbers, not pixels, so Glimmer can take part without vision; this is the open-weight entry, with provenance logs |
 | ~~Muse Image~~ | not used | Meta's Geographic Use Policy bars Muse Image in India (access from India, and serving Indian end users). The renderer is procedural; optional realistic sprites are cut from CC0 photos with SAM 3.1 itself (see the build plan) |
 | **Muse Code** | the build harness | used to build and test this repo; the runtime ledger follows the cookbook's append-only audit-log design |
 
@@ -350,7 +362,7 @@ then open a new terminal; macOS: `brew install ffmpeg`).
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-pytest -q            # 17 offline tests, no keys needed (about 5 minutes)
+pytest -q            # 20 offline tests, no keys needed (about 5 minutes)
 ```
 
 ### Try everything offline first
@@ -388,6 +400,23 @@ uvicorn phystax.web.app:app --port 8000                            # the live la
 
 The UI plays H.264 video, so use Chrome, Edge or Safari for the demo.
 
+### Self-hosted Muse Glimmer (open-weight arm)
+
+Follows Meta's cookbook: a dedicated vLLM image (plain `pip install vllm` will
+not serve it), about 72 GB of VRAM, and both tool-call and reasoning parsers.
+Use only a GPU you are allowed to use.
+
+```bash
+nvidia-smi                                   # pick a free GPU
+bash scripts/serve_glimmer.sh 0              # serves on 127.0.0.1:8000; log -> runs/provenance/
+python scripts/glimmer_check.py              # chat, tools, schema checks + provenance snapshots
+python -m phystax.bench.run_bench agent --models glimmer --conditions oracle --seeds 1 --levels 0
+```
+
+Every Glimmer benchmark run writes a provenance snapshot (git commit, GPU,
+served model list) to `runs/provenance/`, next to the full vLLM server log.
+Commit the ones you cite with `git add -f`.
+
 ## 11. Repository map
 
 ```
@@ -424,7 +453,7 @@ phystax/
   web/
     app.py, static/index.html   live lab and replay UI
 scripts/day1_llm_smoke.py, scripts/day1_sam_smoke.py
-tests/                    17 offline tests
+tests/                    20 offline tests
 docs/build-plan.md, docs/demo-script.md
 assets/                   optional backgrounds/ and sprites/ (CC0 photos; sprites cut out with SAM 3.1)
 ```
@@ -497,3 +526,6 @@ setting.
 - MaD Physics: https://arxiv.org/pdf/2605.10820
 - CausaLab: https://arxiv.org/pdf/2605.26029
 - Pixel2Phys (CVPR 2026): https://arxiv.org/html/2602.19516
+- Predictive Credit: Measuring What Scientific Explanations Add to Experimental Forecasts (CMU, 2026): https://huggingface.co/papers/2610.00314
+- Sharpening Tax in Post-Training (Meta, 2026): https://huggingface.co/papers/2610.01509
+- Gneiting & Raftery, Strictly Proper Scoring Rules, Prediction, and Estimation (JASA, 2007)

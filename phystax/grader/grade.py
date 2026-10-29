@@ -32,12 +32,17 @@ COMMIT_SCHEMA = {
                     "properties": {"name": {"type": "string"}, "value": {"type": "number"}}}},
                 "predictions": {"type": "array", "items": {
                     "type": "object", "additionalProperties": False,
-                    "required": ["test_index", "body", "x", "y"],
+                    "required": ["test_index", "body", "x", "y", "x_lo", "x_hi", "y_lo", "y_hi"],
                     "properties": {
                         "test_index": {"type": "integer"},
                         "body": {"type": "string"},
                         "x": {"type": "array", "items": {"type": "number"}},
-                        "y": {"type": "array", "items": {"type": "number"}}}}},
+                        "y": {"type": "array", "items": {"type": "number"}},
+                        # central 80% prediction interval for each coordinate
+                        "x_lo": {"type": "array", "items": {"type": "number"}},
+                        "x_hi": {"type": "array", "items": {"type": "number"}},
+                        "y_lo": {"type": "array", "items": {"type": "number"}},
+                        "y_hi": {"type": "array", "items": {"type": "number"}}}}},
                 "self_confidence": {"type": "number"},
                 "rationale": {"type": "string"},
             },
@@ -54,6 +59,17 @@ def probe_times(duration_s: float, n: int = 6, fps: int = 30) -> list[float]:
 
 def commitment_hash(c: dict) -> str:
     return hashlib.sha256(json.dumps(c, sort_keys=True).encode()).hexdigest()
+
+
+INTERVAL_ALPHA = 0.2          # committed intervals are central 80% intervals
+
+
+def interval_score(lo: np.ndarray, hi: np.ndarray, y: np.ndarray, alpha: float = INTERVAL_ALPHA) -> np.ndarray:
+    """Gneiting & Raftery (2007) interval score, a proper scoring rule: width,
+    plus 2/alpha times the miss distance when the truth falls outside. Lower is
+    better; it rewards intervals that are both narrow and honest."""
+    lo, hi = np.minimum(lo, hi), np.maximum(lo, hi)
+    return (hi - lo) + (2 / alpha) * np.clip(lo - y, 0, None) + (2 / alpha) * np.clip(y - hi, 0, None)
 
 
 def grade(commitment: dict, family: str, hidden: dict, tests: list[Trajectory],
@@ -75,8 +91,18 @@ def grade(commitment: dict, family: str, hidden: dict, tests: list[Trajectory],
                 continue
             extent = np.linalg.norm(traj.xy[:, b, :].max(0) - traj.xy[:, b, :].min(0)) or 1.0
             rmse = float(np.sqrt(np.mean(np.sum((pred - true) ** 2, 1))))
-            per_test.append({"test_index": i, "body": p["body"], "rmse_px": rmse,
-                             "nrmse": rmse / extent})
+            row = {"test_index": i, "body": p["body"], "rmse_px": rmse, "nrmse": rmse / extent}
+            if all(k in p for k in ("x_lo", "x_hi", "y_lo", "y_hi")):
+                n = len(idx)
+                bounds = [np.asarray(p[k], float)[:n] for k in ("x_lo", "x_hi", "y_lo", "y_hi")]
+                if all(len(v) == n for v in bounds):
+                    xs = interval_score(bounds[0], bounds[1], true[:, 0])
+                    ys = interval_score(bounds[2], bounds[3], true[:, 1])
+                    inside = ((true[:, 0] >= np.minimum(bounds[0], bounds[1])) & (true[:, 0] <= np.maximum(bounds[0], bounds[1])),
+                              (true[:, 1] >= np.minimum(bounds[2], bounds[3])) & (true[:, 1] <= np.maximum(bounds[2], bounds[3])))
+                    row["interval_score_norm"] = float(np.mean(np.concatenate([xs, ys]))) / extent
+                    row["coverage"] = float(np.mean(np.concatenate(inside)))
+            per_test.append(row)
 
     # parameter recovery for the true form's constants. Agents are never told
     # the form or its parameter names, so for agents this only scores when they
@@ -91,8 +117,12 @@ def grade(commitment: dict, family: str, hidden: dict, tests: list[Trajectory],
             params[k] = {"true": hidden[k], "est": given.get(k), "rel_err": None}
 
     nr = [t["nrmse"] for t in per_test if t.get("nrmse") is not None]
+    isc = [t["interval_score_norm"] for t in per_test if "interval_score_norm" in t]
+    cov = [t["coverage"] for t in per_test if "coverage" in t]
     return {
         "prediction_nrmse": float(np.mean(nr)) if nr else None,
+        "interval_score_norm": float(np.mean(isc)) if isc else None,
+        "coverage_80": float(np.mean(cov)) if cov else None,   # calibrated -> about 0.8
         "per_test": per_test,
         "parameters": params,
         "pass": bool(nr) and float(np.mean(nr)) < 0.05,   # within 5% of path size
