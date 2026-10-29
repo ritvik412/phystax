@@ -7,5 +7,6 @@ fastapi>=0.110
 uvicorn>=0.29
 pytest>=8
 httpx>=0.27
+huggingface_hub>=0.24
 # Official SAM 3 output parser from Meta (not on PyPI at time of writing):
 meta-sam-parser @ git+https://github.com/meta-models/meta-sam.git#subdirectory=python

@@ -6,3 +6,4 @@ runs/
 .cache/
 *.mp4
 .pytest_cache/
+data/

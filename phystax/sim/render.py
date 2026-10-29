@@ -61,6 +61,63 @@ def _background(rng: np.random.Generator, w: int, h: int) -> np.ndarray:
     return np.clip(img, 0, 255).astype(np.uint8)
 
 
+LAB_COLORS = {"ball": (40, 50, 200), "marble": (160, 120, 40), "planet": (60, 90, 120),
+              "block": (40, 110, 170)}   # BGR: red rubber ball, steel-blue marble, slate planet, wood block
+
+
+def render_style() -> str:
+    """'lab' (default): a believable bench scene. 'abstract': the original
+    test-pattern look, kept as a controlled appearance condition."""
+    return os.environ.get("PHYSTAX_RENDER_STYLE", "lab")
+
+
+def _background_lab(rng: np.random.Generator, w: int, h: int) -> np.ndarray:
+    files = sorted(glob.glob(os.path.join(ASSET_DIR, "backgrounds", "*.png")))
+    if files:
+        return cv2.resize(cv2.imread(files[int(rng.integers(len(files)))], cv2.IMREAD_COLOR), (w, h))
+    tone = rng.uniform(205, 228)
+    wall = np.full((h, w, 3), tone, np.float32) * np.array([0.98, 0.99, 1.0], np.float32)
+    wall += cv2.GaussianBlur(rng.normal(0, 6, (h, w)).astype(np.float32), (0, 0), 3)[..., None]
+    yy, xx = np.mgrid[0:h, 0:w]
+    light = 1.0 - 0.18 * (((xx - w * 0.4) / w) ** 2 + ((yy - h * 0.3) / h) ** 2)   # soft lamp falloff
+    wall *= light[..., None]
+    bx0, by0, bx1, by1 = int(w * 0.08), int(h * 0.06), int(w * 0.92), int(h * 0.94)
+    wall[by0:by1, bx0:bx1] = np.array([236, 240, 238], np.float32) * light[by0:by1, bx0:bx1, None]
+    for x in range(bx0, bx1, 16):   # graph paper: fine grid every 16 px, bold every 80 px
+        cv2.line(wall, (x, by0), (x, by1), (205, 215, 210) if (x - bx0) % 80 else (165, 180, 172), 1)
+    for y in range(by0, by1, 16):
+        cv2.line(wall, (bx0, y), (bx1, y), (205, 215, 210) if (y - by0) % 80 else (165, 180, 172), 1)
+    cv2.rectangle(wall, (bx0, by0), (bx1, by1), (120, 130, 125), 2)
+    cv2.rectangle(wall, (bx0 - 34, by0), (bx0 - 6, by1), (120, 200, 230), -1)      # ruler
+    for i, y in enumerate(range(by0, by1, 16)):
+        cv2.line(wall, (bx0 - 6, y), (bx0 - (18 if i % 5 == 0 else 12), y), (40, 40, 40), 1)
+    wall += rng.normal(0, 2.0, wall.shape).astype(np.float32)                      # sensor grain
+    return np.clip(wall, 0, 255).astype(np.uint8)
+
+
+def _draw_body_lab(img: np.ndarray, name: str, cx: float, cy: float) -> None:
+    r = BODY_RADIUS.get(name, 14)
+    color = np.array(LAB_COLORS.get(name, (60, 60, 160)), float)
+    ov = img.copy()   # soft contact shadow, offset away from the lamp
+    cv2.ellipse(ov, (int(cx + r * 0.35), int(cy + r * 0.45)), (int(r * 1.05), int(r * 0.9)), 0, 0, 360,
+                (90, 95, 92), -1, cv2.LINE_AA)
+    cv2.addWeighted(ov, 0.35, img, 0.65, 0, img)
+    if name == "block":
+        p0, p1 = (int(cx - r), int(cy - r * 0.7)), (int(cx + r), int(cy + r * 0.7))
+        cv2.rectangle(img, p0, p1, tuple(int(c) for c in color), -1, cv2.LINE_AA)
+        for k in range(4):
+            yy = int(cy - r * 0.55 + k * r * 0.37)
+            cv2.line(img, (p0[0] + 2, yy), (p1[0] - 2, yy), tuple(int(c * 0.75) for c in color), 1, cv2.LINE_AA)
+        cv2.rectangle(img, p0, p1, tuple(int(c * 0.5) for c in color), 1, cv2.LINE_AA)
+        return
+    for i in range(r, 0, -1):      # shading lit from the upper left
+        f = i / r
+        shade = 0.45 + 0.55 * (1 - f) ** 0.6
+        cv2.circle(img, (int(cx - (r - i) * 0.35), int(cy - (r - i) * 0.35)), i,
+                   tuple(int(min(255, c * shade + 25 * (1 - f))) for c in color), -1, cv2.LINE_AA)
+    cv2.circle(img, (int(cx - r * 0.38), int(cy - r * 0.38)), max(1, r // 5), (250, 250, 250), -1, cv2.LINE_AA)
+
+
 def _palette(rng: np.random.Generator, n: int) -> list[tuple[int, int, int]]:
     return [tuple(int(v) for v in rng.uniform(40, 240, 3)) for _ in range(n)]
 
@@ -118,15 +175,24 @@ def render(traj: Trajectory, out_path: str, degradation: int | Degradation = 0,
     d = LEVELS[degradation] if isinstance(degradation, int) else degradation
     rng = np.random.default_rng(style_seed)
     w, h = FRAME_W, FRAME_H
-    bg = _background(rng, w, h)
-    colors = _palette(rng, len(traj.bodies))
-    # static distractors that share the moving bodies' colours
-    for c in colors:
-        for _ in range(2):
-            cv2.circle(bg, (int(rng.integers(20, w - 20)), int(rng.integers(20, h - 20))),
-                       int(rng.integers(8, 18)), c, -1, cv2.LINE_AA)
+    style = render_style()
+    if style == "lab":
+        bg = _background_lab(rng, w, h)
+        colors = [LAB_COLORS.get(b, (60, 60, 160)) for b in traj.bodies]
+        for b in traj.bodies[-1:]:   # two look-alike decoys resting on the board's lower edge
+            for _ in range(2):
+                _draw_body_lab(bg, b, float(rng.integers(80, w - 80)), float(h * 0.94 - BODY_RADIUS.get(b, 14) - 2))
+    else:
+        bg = _background(rng, w, h)
+        colors = _palette(rng, len(traj.bodies))
+        for c in colors:   # static distractors that share the moving bodies' colours
+            for _ in range(2):
+                cv2.circle(bg, (int(rng.integers(20, w - 20)), int(rng.integers(20, h - 20))),
+                           int(rng.integers(8, 18)), c, -1, cv2.LINE_AA)
     if family == "nonlinear_spring":
         cv2.line(bg, (0, h // 2 + 22), (w, h // 2 + 22), (90, 90, 90), 3, cv2.LINE_AA)
+        if style == "lab":
+            cv2.rectangle(bg, (w // 2 - 6, h // 2 - 30), (w // 2 + 6, h // 2 + 22), (80, 80, 80), -1)
     occ = occluder_rect(w, h, rng) if d.occluder else None
     noise_rng = np.random.default_rng(style_seed + 1)
 
@@ -155,7 +221,10 @@ def render(traj: Trajectory, out_path: str, degradation: int | Degradation = 0,
                     cv2.line(img, (w // 2, h // 2), (int(pos[0, 0]), int(pos[0, 1])),
                              (200, 200, 200), 2, cv2.LINE_AA)
                 for i, name in enumerate(traj.bodies):
-                    _draw_body(img, name, pos[i, 0], pos[i, 1], colors[i], style_seed)
+                    if style == "lab":
+                        _draw_body_lab(img, name, pos[i, 0], pos[i, 1])
+                    else:
+                        _draw_body(img, name, pos[i, 0], pos[i, 1], colors[i], style_seed)
                 acc += img
             frame = apply_frame((acc / sub).astype(np.uint8), d, noise_rng, occ)
             proc.stdin.write(frame.tobytes())

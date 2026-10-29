@@ -30,6 +30,8 @@ def synthetic_track(body: str, truth_world: np.ndarray, level: int, seed: int) -
     glitch = rng.random(n) < LEVEL_GLITCH.get(level, 0.04)
     xy[glitch] += rng.uniform(-120, 120, (glitch.sum(), 2))
     drop = rng.random(n) < LEVEL_DROPOUT.get(level, 0.1)
+    # a camera cannot see what has left the frame (640 x 480, y up)
+    drop |= (truth_world[:, 0] < 0) | (truth_world[:, 0] > 640) | (truth_world[:, 1] < 0) | (truth_world[:, 1] > 480)
     err = np.linalg.norm(xy - truth_world, axis=1)
     conf = 1.0 / (1.0 + np.exp((err - 2.0 * sigma) / sigma)) # high when error is small
     conf = np.clip(conf * 0.6 + 0.35 + rng.normal(0, 0.05, n), 0.0, 1.0)

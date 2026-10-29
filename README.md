@@ -45,6 +45,8 @@ Built for the Meta Global AI Developer Hackathon (Push the Frontier theme), Oct 
 13. [Limitations and threats to validity](#13-limitations-and-threats-to-validity)
 14. [References](#14-references)
 
+**Start with [`docs/RESEARCH_AUDIT.md`](docs/RESEARCH_AUDIT.md)** (including the Oct 29 update: the competitor, the IRIS real-video arm, and the new lab render style): what the first real API run showed, where the data lives, prior art (GAUGE, IRIS, NewtonBench) and the recommended experiments.
+
 Planning documents: [`docs/build-plan.md`](docs/build-plan.md) (day by day) and
 [`docs/demo-script.md`](docs/demo-script.md) (the 3-minute video and live demo).
 
@@ -362,7 +364,7 @@ then open a new terminal; macOS: `brew install ffmpeg`).
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-pytest -q            # 20 offline tests, no keys needed (about 5 minutes)
+pytest -q            # 25 offline tests, no keys needed (about 5 minutes)
 ```
 
 ### Try everything offline first
@@ -453,7 +455,7 @@ phystax/
   web/
     app.py, static/index.html   live lab and replay UI
 scripts/day1_llm_smoke.py, scripts/day1_sam_smoke.py
-tests/                    20 offline tests
+tests/                    25 offline tests
 docs/build-plan.md, docs/demo-script.md
 assets/                   optional backgrounds/ and sprites/ (CC0 photos; sprites cut out with SAM 3.1)
 ```

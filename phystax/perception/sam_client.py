@@ -123,7 +123,8 @@ def _validate(result) -> None:
                        "; ".join(f"line {d.line}: {d.message}" for d in errors[:5]))
 
 
-async def _call_api(video_path: str, phrase: str, include_confidence: bool) -> tuple[Any, list]:
+async def _call_api(video_path: str, phrase: str, include_confidence: bool,
+                    object_prompt: bool = False) -> tuple[Any, list]:
     from openai import AsyncOpenAI
     events: list = []
     async with AsyncOpenAI(base_url=base_url("meta"), api_key=api_key("meta")) as api:
@@ -142,6 +143,8 @@ async def _call_api(video_path: str, phrase: str, include_confidence: bool) -> t
             kwargs["metadata"] = {"mask_encoding": "one_bit"}
             if include_confidence:
                 kwargs["metadata"]["include_confidence"] = "true"
+        if object_prompt:   # track the prompted objects from frame 0 onwards only
+            kwargs.setdefault("metadata", {})["propagation_direction"] = "forward"
         stream = await api.responses.create(**kwargs)
         async with stream, aclosing(_synthesize_done(stream, events)) as ev:
             result = await _parse(ev)
@@ -160,12 +163,16 @@ def _frames_billed(events: list) -> int | None:
 
 def segment_video(video_path: str, phrase: str, include_confidence: bool = True,
                   use_cache: bool = True, n_frames: int | None = None,
-                  retries: int = 3) -> SamCall:
-    if not phrase.strip() or "," in phrase:
+                  retries: int = 3, object_prompt: bool = False,
+                  cache_only: bool = False) -> SamCall:
+    """`phrase` is either ONE short noun phrase (concept mode) or, with
+    object_prompt=True, object-prompt text from meta_sam_parser.build_object_prompt
+    (box/point mode). The two must never be combined in one request."""
+    if not object_prompt and (not phrase.strip() or "," in phrase):
         raise SamError("SAM takes ONE short noun phrase per request (no lists)")
     os.makedirs(CACHE_DIR, exist_ok=True)
     key = hashlib.sha256(
-        f"{_sha(video_path)}|{phrase}|{include_confidence}|{_use_metadata()}".encode()).hexdigest()
+        f"{_sha(video_path)}|{phrase}|{include_confidence}|{_use_metadata()}|{object_prompt}".encode()).hexdigest()
     cache_path = os.path.join(CACHE_DIR, f"sam_{key}.json")
 
     if use_cache and os.path.exists(cache_path):
@@ -174,13 +181,15 @@ def segment_video(video_path: str, phrase: str, include_confidence: bool = True,
         return SamCall(phrase, video_path, list(result.records), list(result.diagnostics),
                        blob["latency_s"], blob.get("frames_billed"), True, 0.0)
 
+    if cache_only:
+        raise SamError(f"not cached (cache_only): {os.path.basename(video_path)} / {phrase[:40]}")
     est = budget.sam_video_cost(n_frames or 150)
     budget.check("meta", est, f"SAM on {os.path.basename(video_path)}")
     last_exc = None
     for attempt in range(retries + 1):
         t0 = time.time()
         try:
-            result, events = asyncio.run(_call_api(video_path, phrase, include_confidence))
+            result, events = asyncio.run(_call_api(video_path, phrase, include_confidence, object_prompt))
             break
         except SamError:
             raise

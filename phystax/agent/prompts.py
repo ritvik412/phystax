@@ -8,6 +8,8 @@ CHANNEL_NOTES = {
     "sam_conf": ("Measurements come from a camera: an object-segmentation model tracked each body "
                  "in the rendered video. Each frame carries the model's confidence `conf` in [0,1]; "
                  "null means the body was not found. Use the confidence however you judge best."),
+    "sam_box": ("Measurements come from a camera: an object-tracking model was pointed at each body's "
+                "starting position in the first frame and tracked it. Expect noise and possible lost frames (null)."),
     "classical": ("Measurements come from a camera using background subtraction. Expect noise, "
                   "missing frames (null) and possible confusion between objects."),
 }

@@ -270,6 +270,8 @@ def public_spec(family: LawFamily) -> dict:
         "description": family.public_description,
         "bodies": family.bodies,
         "units": "positions in pixels (origin bottom-left, y up), time in seconds",
+        "camera_frame_px": [640, 480],
+        "note": "the camera only sees positions inside the frame; anything outside is not measured",
         "experiment_parameters": [
             {"name": p.name, "min": p.lo, "max": p.hi, "unit": p.unit, "doc": p.doc}
             for p in family.experiment_params],

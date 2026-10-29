@@ -21,7 +21,37 @@ from ..perception import classical
 from ..perception.tracks import build_track, centroid_error_px
 from ..sim.world import Experiment
 
-CONDITIONS = ["oracle", "noisy_oracle", "sam", "sam_conf", "classical"]
+CONDITIONS = ["oracle", "noisy_oracle", "sam", "sam_conf", "sam_box", "classical"]
+
+# Concept channels use generic shape words: in the Oct 29 probe, specific nouns
+# ("ball", "planet", "block", "marble") were found in only 4 of 12 attempts and
+# flipped with the rendering style, while shape words were found every time.
+CONCEPT_WORD = {"ball": "circle", "marble": "circle", "planet": "circle", "block": "rectangle"}
+
+# Box half-sizes (px) used to point SAM at each body on frame 0. The position
+# comes from the experiment set-up (where the experimenter placed the object),
+# never from the simulated trajectory.
+BOX_HALF = {"planet": (30, 30), "marble": (15, 15), "ball": (17, 17), "block": (24, 18)}
+
+
+def setup_boxes(family, params: dict, frame_w: int, frame_h: int):
+    """Frame-0 boxes from the known initial state of the experiment."""
+    from meta_sam_parser import FramePrompt, PromptBox, PromptObject, build_object_prompt
+    s0 = family.initial_state(family.validate_experiment(params))
+    objs = []
+    for i, name in enumerate(family.bodies):
+        x, y = float(s0[i, 0]), frame_h - float(s0[i, 1])
+        hx, hy = BOX_HALF.get(name, (16, 16))
+        box = PromptBox(left=int(max(0, x - hx)), top=int(max(0, y - hy)),
+                        right=int(min(frame_w, x + hx)), bottom=int(min(frame_h, y + hy)))
+        objs.append(PromptObject(id=i + 1, prompts=[FramePrompt(frame=0, box=box, points=[])]))
+    return build_object_prompt(size=(frame_w, frame_h), objects=objs)
+
+
+def drop_truncated_enabled() -> bool:
+    """Drop frames where SAM's box touches the border. Day-2 probe: those frames
+    carry 5-8x the error of interior frames. PHYSTAX_DROP_TRUNCATED=0 to keep them."""
+    return os.environ.get("PHYSTAX_DROP_TRUNCATED", "1") != "0"
 
 
 def sam_backend() -> str:
@@ -63,14 +93,39 @@ def measure(exp: Experiment, condition: str, fixed_bodies: set[int],
             diag["per_body"][b] = centroid_error_px(tr, truth[:, i, :])
         return out, diag
 
+    if condition == "sam_box":
+        from ..config import FRAME_W
+        from ..perception.sam_client import segment_video
+        from ..perception.tracks import track_for_object
+        from ..sim.laws import FAMILIES
+        family = next(f for f in FAMILIES.values() if f.bodies == bodies)
+        prompt = setup_boxes(family, exp.params, FRAME_W, FRAME_H)
+        call = segment_video(exp.video_path, prompt, include_confidence=True,
+                             n_frames=exp.n_frames, object_prompt=True)  # one request, all bodies
+        diag["sam_backend"] = "api"
+        diag["prompt"] = prompt
+        from ..perception.tracks import drop_truncated
+        for i, b in enumerate(bodies):
+            tr = track_for_object(b, call.records, i + 1, exp.n_frames, FRAME_H)
+            if drop_truncated_enabled():
+                tr = drop_truncated(tr)
+            out["bodies"][b] = tr.to_jsonable(include_conf=False)
+            d = centroid_error_px(tr, truth[:, i, :])
+            d.update({"sam_latency_s": call.latency_s, "cached": call.cached})
+            diag["per_body"][b] = d
+        return out, diag
+
     if condition in ("sam", "sam_conf"):
         from ..perception.sam_client import segment_video
         diag["sam_backend"] = "api"
         for i, b in enumerate(bodies):
-            call = segment_video(exp.video_path, b, include_confidence=True,
+            call = segment_video(exp.video_path, CONCEPT_WORD.get(b, b), include_confidence=True,
                                  n_frames=exp.n_frames)   # cached; one call serves sam and sam_conf
             mode = "largest" if i in fixed_bodies else "moving"
             tr = build_track(b, call.records, exp.n_frames, FRAME_H, mode)
+            if drop_truncated_enabled():
+                from ..perception.tracks import drop_truncated
+                tr = drop_truncated(tr)
             out["bodies"][b] = tr.to_jsonable(include_conf=(condition == "sam_conf"))
             d = centroid_error_px(tr, truth[:, i, :])
             d.update({"candidates": tr.n_candidates, "sam_latency_s": call.latency_s,

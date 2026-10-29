@@ -80,3 +80,16 @@ def test_tracks_pick_moving_instance_over_static_distractor():
     assert tr.n_candidates >= 1
     # whether or not the toy mask payload validates, boxes fill the centroid
     assert np.isfinite(tr.x).sum() >= 1
+
+
+def test_truncation_flag_uses_sams_own_box():
+    from phystax.perception.tracks import drop_truncated, track_for_object
+    lines = ["<0f>1<|box;x1=300;y1=200;x2=320;y2=220;w=640;h=480|><|mask;x=0;y=0;data=1,1,!!!!!!!|>",
+             "<1f>1<|box;x1=0;y1=200;x2=12;y2=220;w=640;h=480|><|mask;x=0;y=0;data=1,1,!!!!!!!|>"]
+    parser = video_segmentation_format().create_parser()
+    parser.push("\n".join(lines) + "\n")
+    res = parser.finish(CompletedOutcome()).result
+    tr = track_for_object("ball", list(res.records), 1, 2, 480)
+    assert tr.truncated is not None and list(tr.truncated) == [False, True]
+    cut = drop_truncated(tr)
+    assert np.isfinite(cut.x[0]) and not np.isfinite(cut.x[1])
