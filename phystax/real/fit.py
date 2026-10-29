@@ -175,3 +175,24 @@ def fit_free_fall(t, y_m) -> dict:
     """g from the vertical coordinate of a released object (y up)."""
     f = fit_const_acc(t, y_m)
     return {"g": float(-f.params["a"]), "g_se": float(f.stderr["a"]), "fit": f}
+
+
+def qfi(t, s) -> dict:
+    """Quadratic Form Improvement (the nested-model F statistic used by GAUGE for
+    uniformly accelerated motion): fit s = b + k t^2, then add a t^4 term.
+    QFI = (SSE_L - SSE_Q) / (SSE_Q / (N - 3)). Low QFI: the constant-acceleration
+    form suffices; high QFI: systematic curvature. Also returns R^2 of the linear
+    fit and a = 2k, so law form and parameter can be reported separately."""
+    t, s = _clean(t, s)
+    tt = t - t[0]
+    u = tt ** 2
+    XL = np.c_[np.ones_like(u), u]
+    XQ = np.c_[np.ones_like(u), u, u ** 2]
+    cL, *_ = np.linalg.lstsq(XL, s, rcond=None)
+    cQ, *_ = np.linalg.lstsq(XQ, s, rcond=None)
+    sseL = float(np.sum((s - XL @ cL) ** 2))
+    sseQ = float(np.sum((s - XQ @ cQ) ** 2))
+    n = len(s)
+    r2 = 1 - sseL / float(np.sum((s - s.mean()) ** 2)) if n > 2 else float("nan")
+    q = (sseL - sseQ) / (sseQ / max(n - 3, 1)) if sseQ > 0 else float("inf")
+    return {"qfi": float(q), "r2_linear_in_t2": float(r2), "a": float(2 * cL[1]), "n": n}

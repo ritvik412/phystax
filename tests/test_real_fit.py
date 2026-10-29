@@ -59,3 +59,15 @@ def test_measure_clip_analyze_pixels_to_physics():
     assert abs(r["g"] - 9.81) < 0.1
     r_auto = mc.analyze(t, x_px, y_px, H, px_per_m, "auto")
     assert r_auto["model"] == "const_acc"
+
+
+def test_qfi_separates_law_form_from_parameter():
+    from phystax.real.fit import qfi
+    t = np.arange(0, 0.5, 1 / 60)
+    good = 0.5 * 9.81 * t ** 2 + rng.normal(0, 1e-4, t.size)
+    wrong_g = 0.5 * 2.0 * t ** 2 + rng.normal(0, 1e-4, t.size)       # right form, wrong parameter
+    curved = 0.5 * 9.81 * t ** 2 + 30 * t ** 4                         # wrong form
+    a, b, c = qfi(t, good), qfi(t, wrong_g), qfi(t, curved)
+    assert a["qfi"] < 10 and abs(a["a"] - 9.81) < 0.05
+    assert b["qfi"] < 10 and abs(b["a"] - 2.0) < 0.05                    # form fine, a wrong
+    assert c["qfi"] > 100

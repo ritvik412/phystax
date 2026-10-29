@@ -21,7 +21,7 @@ from ..perception import classical
 from ..perception.tracks import build_track, centroid_error_px
 from ..sim.world import Experiment
 
-CONDITIONS = ["oracle", "noisy_oracle", "sam", "sam_conf", "sam_box", "classical"]
+CONDITIONS = ["oracle", "noisy_oracle", "sam", "sam_conf", "sam_box", "sam_box_conf", "classical"]
 
 # Concept channels use generic shape words: in the Oct 29 probe, specific nouns
 # ("ball", "planet", "block", "marble") were found in only 4 of 12 attempts and
@@ -93,7 +93,7 @@ def measure(exp: Experiment, condition: str, fixed_bodies: set[int],
             diag["per_body"][b] = centroid_error_px(tr, truth[:, i, :])
         return out, diag
 
-    if condition == "sam_box":
+    if condition in ("sam_box", "sam_box_conf"):
         from ..config import FRAME_W
         from ..perception.sam_client import segment_video
         from ..perception.tracks import track_for_object
@@ -109,7 +109,7 @@ def measure(exp: Experiment, condition: str, fixed_bodies: set[int],
             tr = track_for_object(b, call.records, i + 1, exp.n_frames, FRAME_H)
             if drop_truncated_enabled():
                 tr = drop_truncated(tr)
-            out["bodies"][b] = tr.to_jsonable(include_conf=False)
+            out["bodies"][b] = tr.to_jsonable(include_conf=(condition == "sam_box_conf"))
             d = centroid_error_px(tr, truth[:, i, :])
             d.update({"sam_latency_s": call.latency_s, "cached": call.cached})
             diag["per_body"][b] = d

@@ -45,7 +45,7 @@ Built for the Meta Global AI Developer Hackathon (Push the Frontier theme), Oct 
 13. [Limitations and threats to validity](#13-limitations-and-threats-to-validity)
 14. [References](#14-references)
 
-**Start with [`docs/RESEARCH_AUDIT.md`](docs/RESEARCH_AUDIT.md)** (including the Oct 29 update: the competitor, the IRIS real-video arm, and the new lab render style): what the first real API run showed, where the data lives, prior art (GAUGE, IRIS, NewtonBench) and the recommended experiments.
+**Start with [`docs/RESEARCH_AUDIT.md`](docs/RESEARCH_AUDIT.md)** (including the Oct 29 update: the IRIS real-video arm, and the new lab render style): what the first real API run showed, where the data lives, prior art (GAUGE, IRIS, NewtonBench) and the recommended experiments.
 
 Planning documents: [`docs/build-plan.md`](docs/build-plan.md) (day by day) and
 [`docs/demo-script.md`](docs/demo-script.md) (the 3-minute video and live demo).

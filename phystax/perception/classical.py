@@ -1,6 +1,6 @@
 """Classical baseline: median background subtraction + blob association.
 
-This is the honest competitor to SAM. With a static camera and a static
+This is the non-foundation-model baseline for SAM. With a static camera and a static
 background it can be strong; flicker, noise, occluders and distractors are
 where it should break. If SAM does not beat it at some degradation level,
 report that: it is a finding, not a failure.

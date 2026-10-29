@@ -1,6 +1,6 @@
 """Provenance snapshots for self-hosted open-weight runs.
 
-Competition staff asked for run logs, screen captures and outputs proving the
+Open-weight runs should be provable: run logs, screen captures and outputs showing the
 open-weight model really ran. Each snapshot records, in runs/provenance/:
 the git commit, the GPU (nvidia-smi), the model list the local server reports,
 key package versions, and the time. `serve_glimmer.sh` also tees the full vLLM

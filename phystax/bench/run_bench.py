@@ -46,7 +46,7 @@ def cmd_reference(a) -> None:
             for seed in range(a.seed_start, a.seed_start + a.seeds):
                 for cond in a.conditions:
                     try:
-                        r = run_reference(fam, seed, cond, lvl, design=a.design,
+                        r = run_reference(fam, seed, cond, lvl, design=a.design, noise_sigma_px=a.noise_sigma,
                                           run_dir=f"runs/reference/{fam}_d{lvl}_s{seed}_{cond}_{a.design}")
                         s = r["score"]
                         row = {"kind": "reference", "family": fam, "level": lvl, "seed": seed,
@@ -109,7 +109,7 @@ def main() -> None:
     sub = ap.add_subparsers(required=True)
     for name, fn, default_conds in [
         ("protocol", cmd_protocol, ["oracle", "noisy_oracle", "sam", "sam_conf", "classical"]),
-        ("reference", cmd_reference, ["oracle", "noisy_oracle", "sam", "sam_conf", "classical"]),
+        ("reference", cmd_reference, ["oracle", "noisy_oracle", "sam", "sam_conf", "sam_box", "sam_box_conf", "classical"]),
         ("agent", cmd_agent, ["oracle", "sam", "sam_conf"]),
     ]:
         p = sub.add_parser(name)
@@ -122,6 +122,8 @@ def main() -> None:
         p.add_argument("--repeats", type=int, default=1, help="attempts per universe (pass@K)")
         p.add_argument("--review", action="store_true")
         p.add_argument("--design", choices=["designed", "random"], default="designed")
+        p.add_argument("--noise-sigma", type=float, default=3.0,
+                       help="noisy_oracle sigma in px; match it to SAM's measured interior error")
         p.add_argument("--out", default=f"runs/{name}.jsonl")
         p.set_defaults(func=fn)
     a = ap.parse_args()

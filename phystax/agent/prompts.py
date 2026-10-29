@@ -10,6 +10,9 @@ CHANNEL_NOTES = {
                  "null means the body was not found. Use the confidence however you judge best."),
     "sam_box": ("Measurements come from a camera: an object-tracking model was pointed at each body's "
                 "starting position in the first frame and tracked it. Expect noise and possible lost frames (null)."),
+    "sam_box_conf": ("Measurements come from a camera: an object-tracking model was pointed at each body's "
+                     "starting position and tracked it. Each frame carries the tracker's confidence `conf`; in "
+                     "calibration, high-confidence frames had several times lower error. null = not measured."),
     "classical": ("Measurements come from a camera using background subtraction. Expect noise, "
                   "missing frames (null) and possible confusion between objects."),
 }

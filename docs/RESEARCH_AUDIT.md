@@ -196,28 +196,7 @@ Then look at `runs/probe/*.png` and `runs/probe/probe.json`. The result decides
 E1 (whether we need realistic sprites) and which SAM mode the rest of the study
 uses.
 
-## Update, Oct 29: the competitor, and a real-world arm
-
-### What [redacted] actually is (read from its repository)
-
-[redacted] (`[redacted]`) is a polished phone app: plan → camera
-pre-flight → predict → record → explain. SAM 3.1 tracks the object (text
-concept, then a box re-prompt, with a tap/point prompt as fallback), an A4 sheet
-gives a pixel-to-metre homography, deterministic code fits a **known textbook
-law** (pendulum, free fall, spring) and a Muse Spark agent explains the result,
-with a check that every number in the answer came from a tool.
-
-Two facts matter for positioning:
-- Its headline accuracy table (20/20 runs within 2σ) comes from **rendered
-  clips**, as its own `docs/ACCURACY.md` states ("rendered scenes, not real
-  footage"); real-phone results are described as reported separately and are
-  not in the repository.
-- It measures constants of laws it already assumes. It does not ask which law
-  holds, does not design experiments, and does not attribute error between the
-  instrument and the analysis.
-
-So we should not copy it. Our lane is different and stays different:
-**discovering which law holds, through a camera, and attributing the error.**
+## Update, Oct 29: a real-world arm
 
 ### The real-world arm: IRIS
 
@@ -329,3 +308,49 @@ downstream number that matters.
 `phystax/bench/measure_perception.py` replicates all of this across seeds and
 camera levels, both prompt modes, and writes a box-mode calibration from
 interior frames only.
+
+## Results, Oct 29 (night): degradation study (432 tracks, cached reuse)
+
+`python -m phystax.bench.measure_perception --seeds 3 --levels 0 1 2 3`
+(3 systems × 3 seeds × 3 experiments × 4 camera levels):
+
+| Level | Classical interior RMSE | SAM box | SAM shape-word | SAM coverage of visible frames |
+|---|---|---|---|---|
+| 0 | 3.06 px | 0.72 px | 0.50 px | 1.00 |
+| 1 | 6.50 | 1.54 | 1.84 | 1.00 |
+| 2 | 7.10 | 1.87 | 2.08 | 1.00 |
+| 3 | 84.55 (collapses) | 2.05 | 2.51 | 1.00 |
+
+- SAM never lost a visible object at any level; the classical tracker collapses
+  at level 3 (occluder, flicker).
+- Shape-word prompts are slightly more precise on clean video; box prompts are
+  15–20% more precise under every degradation.
+- The border flag (SAM's own box touching the edge) caught 100% of border frames.
+- **Confidence, settled for this setting:** box-mode confidence tracks error
+  (Spearman −0.61 over 10,685 interior frames; partial ρ controlling for time
+  −0.42 and −0.62 within levels 1 and 2). Frames with confidence ≥ 0.94 have
+  0.6–0.85 px median error; frames below 0.89 have 2.76 px. Concept-mode
+  confidence stays at ρ ≈ 0 at every level. H2 holds for box mode and fails for
+  concept mode. Caveat: pooled bins mix levels; within-level partial ρ is the
+  cleaner evidence.
+- New channel `sam_box_conf` weights frames by the box calibration;
+  `sam_conf` (raw concept confidence) is kept as a negative control.
+
+## First real-footage look: IRIS Dropping_ball/drop_100/01
+
+The camera looks straight down: the ball falls away from the lens, so the
+signal is its apparent size, not a parabola in the image. With a simple colour
+tracker, the free-flight radius follows the looming model 1/r ∝ d0 + ½g(t−t0)²
+with 0.36% residual, and the bounce is visible after impact. But the parameter
+does not come out right: g ≈ 8.8 m/s² (both from the looming fit and from
+release-to-impact timing), and solving the geometry for the ball's size gives a
+negative radius. The metadata does not state whether `drop_height` is to the
+ball's bottom or centre, the ball radius is not given, and the hands release
+the ball gradually. **Law form recovered, parameter not trustworthy without
+better geometry**, the distinction GAUGE draws. Plan change: prioritise IRIS
+observables that need no distance calibration (pendulum period and amplitude
+decay shape, rotation frequency), and treat drops as a geometry case study.
+
+Note: the IRIS dataset card states CC-BY-NC-4.0 (non-commercial), while the
+arXiv page lists CC BY 4.0. Treat it as non-commercial: fine for this research
+submission, not for a commercial product.

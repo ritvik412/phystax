@@ -196,9 +196,14 @@ def _true_tests(world: World):
 
 
 def weighting_for(condition: str) -> str:
-    if condition != "sam_conf":
-        return "uniform"
-    return "calibrated" if load_calibration() else "raw_conf"
+    """sam_box_conf: weights from the box-mode calibration (box confidence tracks
+    error, Spearman -0.61 over 10,685 interior frames). sam_conf: raw concept-mode
+    confidence, kept as a negative control (it is a monotone clock in our data)."""
+    if condition == "sam_box_conf":
+        return "calibrated" if load_calibration() else "raw_conf"
+    if condition == "sam_conf":
+        return "raw_conf"
+    return "uniform"
 
 
 def random_design(world: World, n: int = 3, seed: int = 0) -> list[dict]:
