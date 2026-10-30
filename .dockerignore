@@ -1,0 +1,7 @@
+.venv
+runs
+.cache
+data
+*.mp4
+.env
+.git

@@ -16,7 +16,7 @@ import os
 from collections import defaultdict
 from statistics import median
 
-CHANNELS = ["oracle", "noisy_oracle", "sam", "sam_conf", "classical"]
+CHANNELS = ["oracle", "noisy_oracle", "sam", "sam_conf", "sam_box", "sam_box_conf", "classical"]
 
 
 def load(path: str, allow_synthetic: bool) -> list[dict]:
@@ -123,10 +123,11 @@ def table_uncertainty_and_passk(agent: list[dict], ref: list[dict]) -> str:
         groups[(r["model"], r["condition"])].append(r)
     for r in ref:
         groups[("reference", r["condition"])].append(r)
-    out = ["| scientist | channel | 80% coverage | interval score | pass@1 | pass@K (K) | n |",
-           "|---|---|---|---|---|---|---|"]
+    out = ["| scientist | channel | 80% coverage | coverage, iid-noise intervals | interval score | pass@1 | pass@K (K) | n |",
+           "|---|---|---|---|---|---|---|---|"]
     for (m, c), rs in sorted(groups.items()):
         cov = [r["coverage_80"] for r in rs if r.get("coverage_80") is not None]
+        cov_iid = [r["coverage_80_iid"] for r in rs if r.get("coverage_80_iid") is not None]
         isc = [r["interval_score"] for r in rs if r.get("interval_score") is not None]
         universes = defaultdict(list)
         for r in rs:
@@ -134,7 +135,8 @@ def table_uncertainty_and_passk(agent: list[dict], ref: list[dict]) -> str:
         k = max((len(v) for v in universes.values()), default=1)
         p1 = sum(v[0] for v in universes.values()) / max(len(universes), 1)
         pk = sum(any(v) for v in universes.values()) / max(len(universes), 1)
-        out.append(f"| {m} | {c} | {fmt(median(cov)) if cov else '–'} | {fmt(median(isc)) if isc else '–'} | "
+        out.append(f"| {m} | {c} | {fmt(median(cov)) if cov else '–'} | {fmt(median(cov_iid)) if cov_iid else '–'} | "
+                   f"{fmt(median(isc)) if isc else '–'} | "
                    f"{fmt(p1, True)} | {fmt(pk, True)} ({k}) | {len(rs)} |")
     return "\n".join(out)
 

@@ -141,15 +141,44 @@ def fit(world: World, measured: list[tuple[dict, dict]], weighting: str = "unifo
     return (est, best) if return_solution else est
 
 
-def param_samples(world: World, sol, n: int = 40, seed: int = 0) -> list[dict]:
+def ar1_inflation(sol) -> float:
+    """Variance inflation for serially correlated residuals. Least squares
+    assumes independent errors; tracking errors are not (a mask that is off by
+    a pixel stays off for many frames). With lag-1 residual autocorrelation rho,
+    the effective number of independent points is n (1 - rho) / (1 + rho), so
+    the covariance is scaled by (1 + rho) / (1 - rho). Computed per residual
+    series (x and y of each experiment) and pooled."""
+    r = np.asarray(sol.fun, float)
+    seg = 32
+    rhos = []
+    # residuals are concatenated per experiment and coordinate; estimate rho on
+    # contiguous non-zero runs (masked frames contribute exact zeros)
+    nz = np.flatnonzero(r != 0)
+    if len(nz) < seg:
+        return 1.0
+    runs = np.split(nz, np.flatnonzero(np.diff(nz) != 1) + 1)
+    for idx in runs:
+        if len(idx) >= seg:
+            x = r[idx]                    # not demeaned: a constant offset is fully correlated error
+            den = float(np.dot(x, x))
+            if den > 0:
+                rhos.append(float(np.dot(x[:-1], x[1:]) / den))
+    if not rhos:
+        return 1.0
+    rho = float(np.clip(np.median(rhos), 0.0, 0.98))
+    return (1 + rho) / (1 - rho)
+
+
+def param_samples(world: World, sol, n: int = 40, seed: int = 0, correlated: bool = True) -> list[dict]:
     """Laplace approximation: cov = s^2 (J^T J)^-1 in the fitting space, with
-    s^2 the residual variance. Sampling it and simulating each sample gives
-    prediction intervals that reflect how well the data pinned the constants."""
+    s^2 the residual variance. With correlated=True the covariance is inflated
+    for serially correlated residuals (ar1_inflation); correlated=False is the
+    textbook iid version, kept to measure how overconfident it is."""
     form = world.family.forms[world.hidden["form"]]
     J = np.asarray(sol.jac, float)
     m, k = J.shape
     s2 = 2.0 * sol.cost / max(m - k, 1)
-    cov = np.linalg.pinv(J.T @ J) * s2
+    cov = np.linalg.pinv(J.T @ J) * s2 * (ar1_inflation(sol) if correlated else 1.0)
     if not np.all(np.isfinite(cov)):
         return []
     rng = np.random.default_rng(seed)
@@ -241,8 +270,10 @@ def run_reference(family: str, seed: int, condition: str, degradation: int = 0,
     os.makedirs(os.path.join(world.run_dir, "sandbox"), exist_ok=True)
     json.dump(shown_all, open(os.path.join(world.run_dir, "sandbox", "experiments.json"), "w"))
     est, sol = fit(world, measured, weighting, load_calibration(), return_solution=True)
-    preds, times = _predict(world, est, param_samples(
-        world, sol, n=int(os.environ.get("PHYSTAX_INTERVAL_SAMPLES", "40")), seed=seed))
+    n_samp = int(os.environ.get("PHYSTAX_INTERVAL_SAMPLES", "40"))
+    preds, times = _predict(world, est, param_samples(world, sol, n=n_samp, seed=seed, correlated=True))
+    preds_iid, _ = _predict(world, est, param_samples(world, sol, n=n_samp, seed=seed, correlated=False))
+    inflation = ar1_inflation(sol)
     commitment = {"law_equation": world.family.forms[world.hidden["form"]].equation + " (given)",
                   "parameters": [{"name": k, "value": float(v)} for k, v in est.items() if k != "form"],
                   "predictions": preds, "self_confidence": 1.0,
@@ -252,6 +283,11 @@ def run_reference(family: str, seed: int, condition: str, degradation: int = 0,
     tests = [world.run_test(i, TEST_S) for i in range(len(world.test_params))]
     ledger.append("test_reveal", {"videos": [t.video_path for t in tests], "commit_sha256": c_hash})
     score = grade(commitment, family, world.hidden, [t.traj for t in tests], times, FPS)
+    score_iid = grade({"parameters": commitment["parameters"], "predictions": preds_iid},
+                      family, world.hidden, [t.traj for t in tests], times, FPS)
+    score["coverage_80_iid"] = score_iid.get("coverage_80")
+    score["interval_score_iid"] = score_iid.get("interval_score_norm")
+    score["ar1_inflation"] = inflation
     ledger.append("grade", score)
     ledger.append("secret_reveal", world.reveal())
     ok, why = ledger.verify()

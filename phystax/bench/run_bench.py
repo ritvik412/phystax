@@ -53,6 +53,8 @@ def cmd_reference(a) -> None:
                                "condition": cond, "nrmse": s["prediction_nrmse"],
                                "interval_score": s.get("interval_score_norm"),
                                "coverage_80": s.get("coverage_80"),
+                               "coverage_80_iid": s.get("coverage_80_iid"),
+                               "ar1_inflation": s.get("ar1_inflation"),
                                "design": a.design, "weighting": r["weighting"],
                                "true_form": r["true_form"],
                                "sam_backend": r["sam_backend"],

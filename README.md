@@ -52,6 +52,15 @@ Planning documents: [`docs/build-plan.md`](docs/build-plan.md) (day by day) and
 
 ---
 
+## Provenance
+
+Everything in this repository was built during the hackathon window (from
+Oct 26, 2026); the git history is the record. Every reported number comes from
+a run that can be replayed: SAM responses are cached by content hash, each
+episode writes a hash-chained ledger, spend is logged per call, and results
+made with the offline SAM stand-in are tagged and excluded from reports. See
+[`LIMITATIONS.md`](LIMITATIONS.md) for what the results do not show.
+
 ## 1. The idea in one minute
 
 Real science happens through instruments. A physicist never receives the true

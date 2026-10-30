@@ -36,4 +36,18 @@ def test_passk_table():
     rows = [{"model": "spark", "condition": "sam", "family": "power_drag", "degradation": 2, "seed": 0,
              "pass": p, "coverage_80": 0.7, "interval_score": 0.1} for p in (False, True, False)]
     t = table_uncertainty_and_passk(rows, [])
-    assert "| spark | sam | 0.7000 | 0.1000 | 0.0% | 100.0% (3) | 3 |" in t
+    assert "| spark | sam | 0.7000 | – | 0.1000 | 0.0% | 100.0% (3) | 3 |" in t
+
+
+def test_ar1_inflation_grows_with_correlation():
+    from types import SimpleNamespace as NS
+    from phystax.bench.reference import ar1_inflation
+    rng = np.random.default_rng(1)
+    white = rng.normal(0, 1, 400)
+    ar = np.zeros(400)
+    for i in range(1, 400):
+        ar[i] = 0.9 * ar[i - 1] + rng.normal(0, 1)
+    assert ar1_inflation(NS(fun=white)) < 1.3
+    assert ar1_inflation(NS(fun=ar)) > 8
+    offset = 0.8 + rng.normal(0, 0.1, 400)          # constant tracking bias + small jitter
+    assert ar1_inflation(NS(fun=offset)) > 20
