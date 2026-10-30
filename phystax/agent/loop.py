@@ -77,7 +77,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
     moving = [b for i, b in enumerate(world.family.bodies) if i not in world.family.fixed_bodies]
     messages.append({"role": "user", "content": prompts.commit_message(
         world.test_conditions(), times, moving)})
-    commitment = _commit(model, messages)
+    commitment = _commit(model, messages, ledger, len(world.test_params), len(times), moving)
 
     if review and reviewer is not None:
         verdict = _review(reviewer, tools.data, commitment)
@@ -87,7 +87,7 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
             messages.append({"role": "user", "content":
                              "An independent referee raised these issues. Address them and "
                              "re-commit (exploration is still closed): " + json.dumps(verdict["issues"])})
-            commitment = _commit(model, messages)
+            commitment = _commit(model, messages, ledger, len(world.test_params), len(times), moving)
 
     c_hash = commitment_hash(commitment)
     ledger.append("commit", {"commitment": commitment, "sha256": c_hash})
@@ -114,17 +114,76 @@ def run_episode(family: str, seed: int, condition: str, model, degradation: int 
     return result
 
 
-def _commit(model, messages: list[dict]) -> dict:
-    msg = model.chat(messages, response_format=COMMIT_SCHEMA)
+def _extract_json(text: str) -> dict | None:
+    """Parse a JSON object even if the model wrapped it in prose or code fences."""
+    if not text:
+        return None
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.strip("`")
+        t = t[4:] if t.lower().startswith("json") else t
     try:
-        return json.loads(msg.content)
-    except (json.JSONDecodeError, TypeError):
-        text = (msg.content or "").strip().strip("`").removeprefix("json").strip()
+        obj = json.loads(t)
+        return obj if isinstance(obj, dict) else None
+    except json.JSONDecodeError:
+        pass
+    a, b = t.find("{"), t.rfind("}")
+    if a != -1 and b > a:
         try:
-            return json.loads(text)
+            obj = json.loads(t[a:b + 1])
+            return obj if isinstance(obj, dict) else None
         except json.JSONDecodeError:
-            return {"law_equation": "", "parameters": [], "predictions": [],
-                    "self_confidence": 0.0, "rationale": f"unparseable commit: {text[:200]}"}
+            return None
+    return None
+
+
+def _shape_problems(c: dict, n_tests: int, n_times: int, bodies: list[str]) -> list[str]:
+    """Format checks only (never the answer): one prediction per test and body,
+    each coordinate list exactly as long as the probe-time list."""
+    probs = []
+    preds = c.get("predictions") or []
+    seen = {(p.get("test_index"), p.get("body")) for p in preds}
+    for i in range(n_tests):
+        for b in bodies:
+            if (i, b) not in seen:
+                probs.append(f"missing prediction for test_index={i}, body='{b}'")
+    for p in preds:
+        for k in ("x", "y", "x_lo", "x_hi", "y_lo", "y_hi"):
+            v = p.get(k)
+            if not isinstance(v, list) or len(v) != n_times:
+                probs.append(f"test_index={p.get('test_index')} body='{p.get('body')}': '{k}' must have "
+                             f"{n_times} numbers, got {len(v) if isinstance(v, list) else 'none'}")
+    return probs
+
+
+def _commit(model, messages: list[dict], ledger=None, n_tests: int = 2, n_times: int = 6,
+            bodies: list[str] | None = None, max_attempts: int = 3) -> dict:
+    """Ask for the sealed prediction as schema-constrained JSON. Long tool-using
+    sessions sometimes answer in prose instead; we extract JSON if present,
+    otherwise ask again (format feedback only), and log every attempt."""
+    bodies = bodies or []
+    msgs = list(messages)
+    last_text = ""
+    for attempt in range(1, max_attempts + 1):
+        fmt = COMMIT_SCHEMA if attempt < max_attempts else {"type": "json_object"}
+        msg = model.chat(msgs, response_format=fmt)
+        last_text = msg.content or ""
+        obj = _extract_json(last_text)
+        probs = ["reply was not a JSON object"] if obj is None else _shape_problems(obj, n_tests, n_times, bodies)
+        if ledger is not None:
+            ledger.append("commit_attempt", {"attempt": attempt, "parsed": obj is not None,
+                                             "problems": probs[:10], "raw_head": last_text[:400]})
+        if obj is not None and not probs:
+            return obj
+        msgs = msgs + [{"role": "assistant", "content": last_text},
+                       {"role": "user", "content":
+                        "Your reply could not be accepted: " + "; ".join(probs[:6]) +
+                        ". Reply with ONLY the JSON object (no prose, no code fences) with keys "
+                        "law_equation, parameters, predictions, self_confidence, rationale."}]
+        if obj is not None and probs and attempt == max_attempts:
+            return obj        # well-formed JSON with shape problems: grade what we have
+    return {"law_equation": "", "parameters": [], "predictions": [],
+            "self_confidence": 0.0, "rationale": f"unparseable commit after {max_attempts} attempts: {last_text[:200]}"}
 
 
 def _review(reviewer, data: dict, commitment: dict) -> dict:

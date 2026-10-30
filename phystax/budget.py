@@ -46,12 +46,25 @@ def pool(provider: str) -> str:
     return "baseten" if provider == "baseten" else ("meta" if provider == "meta" else "other")
 
 
+_RUN_START: dict = {}
+
+
 def cap(p: str) -> float:
+    """Total cap (PHYSTAX_BUDGET_USD, a running total across all runs), further
+    limited by PHYSTAX_RUN_BUDGET_USD: the most THIS process may add on top of
+    what was already spent when it started. Use the run cap for one-off commands."""
     if p == "meta":
-        return float(os.environ.get("PHYSTAX_BUDGET_USD", "120"))
-    if p == "baseten":
-        return float(os.environ.get("PHYSTAX_BASETEN_BUDGET_USD", "90"))
-    return float("inf")
+        total = float(os.environ.get("PHYSTAX_BUDGET_USD", "120"))
+    elif p == "baseten":
+        total = float(os.environ.get("PHYSTAX_BASETEN_BUDGET_USD", "90"))
+    else:
+        return float("inf")
+    run = os.environ.get("PHYSTAX_RUN_BUDGET_USD")
+    if run:
+        if p not in _RUN_START:
+            _RUN_START[p] = spent(p)
+        total = min(total, _RUN_START[p] + float(run))
+    return total
 
 
 def spent(p: str | None = None) -> float:

@@ -22,7 +22,8 @@ class FakeModel:
                 "law_equation": "x'' = -k x - c x^3 - b x'",
                 "parameters": [{"name": "k", "value": 10.0}, {"name": "c", "value": 0.0},
                                {"name": "b", "value": 0.1}],
-                "predictions": [{"test_index": i, "body": "block", "x": [320.0] * 6, "y": [240.0] * 6}
+                "predictions": [{"test_index": i, "body": "block", "x": [320.0] * 6, "y": [240.0] * 6,
+                                 "x_lo": [310.0] * 6, "x_hi": [330.0] * 6, "y_lo": [230.0] * 6, "y_hi": [250.0] * 6}
                                 for i in range(2)],
                 "self_confidence": 0.2, "rationale": "scripted"}), tool_calls=None)
         self.turn += 1
@@ -45,3 +46,44 @@ def test_two_step_loop_and_ledger():
     assert r["score"]["prediction_nrmse"] is not None
     out = open(os.path.join(r["run_dir"], "sandbox", "_cell.py")).read()
     assert "data" in out
+
+
+class ProseThenJsonModel(FakeModel):
+    """Answers the commit in prose first (as Muse Spark did once), then in JSON."""
+    def __init__(self):
+        super().__init__()
+        self.commit_calls = 0
+
+    def chat(self, messages, tools=None, response_format=None, max_tokens=0):
+        if response_format is None:
+            return super().chat(messages, tools, response_format, max_tokens)
+        self.commit_calls += 1
+        if self.commit_calls == 1:
+            return NS(content="I'll compute precise predictions from my fitted law. ax = -b*vx ...", tool_calls=None)
+        pts = [320.0] * 6
+        return NS(content="Here it is:\n" + json.dumps({
+            "law_equation": "x'' = -k x", "parameters": [{"name": "k", "value": 10.0}],
+            "predictions": [{"test_index": i, "body": "block", "x": pts, "y": pts, "x_lo": pts, "x_hi": pts,
+                             "y_lo": pts, "y_hi": pts} for i in range(2)],
+            "self_confidence": 0.5, "rationale": "retry"}), tool_calls=None)
+
+
+def test_commit_recovers_from_prose_reply():
+    m = ProseThenJsonModel()
+    r = run_episode("nonlinear_spring", 0, "oracle", m, degradation=0, tag="_prose")
+    assert m.commit_calls == 2
+    assert r["score"]["prediction_nrmse"] is not None
+    kinds = [json.loads(l)["kind"] for l in open(os.path.join(r["run_dir"], "ledger.jsonl"))]
+    assert kinds.count("commit_attempt") == 2 and r["ledger_ok"]
+
+
+def test_run_budget_cap(tmp_path, monkeypatch):
+    from phystax import budget
+    monkeypatch.setenv("PHYSTAX_RUNS", str(tmp_path))
+    budget.record("meta", 4.50, "sam_video", "sam-3.1")
+    monkeypatch.setenv("PHYSTAX_RUN_BUDGET_USD", "1.0")
+    budget._RUN_START.clear()
+    budget.check("meta", 0.9, "fits in this run's allowance")
+    import pytest
+    with pytest.raises(budget.BudgetExceeded):
+        budget.check("meta", 1.2, "exceeds this run's allowance")
