@@ -43,7 +43,7 @@ AGENT_MODELS: dict[str, AgentModel] = {
     # message.reasoning (not reasoning_content). One tool call per message.
     "glimmer": AgentModel("Muse Glimmer 30B (self-hosted)", "local",
                           os.environ.get("GLIMMER_MODEL_ID", "muse-glimmer"),
-                          False, "medium"),
+                          False, os.environ.get("GLIMMER_REASONING_EFFORT", "medium") or None),
 }
 
 REVIEWER_MODEL = "wonder"

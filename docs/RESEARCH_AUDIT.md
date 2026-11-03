@@ -354,3 +354,46 @@ decay shape, rotation frequency), and treat drops as a geometry case study.
 Note: the IRIS dataset card states CC-BY-NC-4.0 (non-commercial), while the
 arXiv page lists CC BY 4.0. Treat it as non-commercial: fine for this research
 submission, not for a commercial product.
+
+## Results, Oct 30: real footage (IRIS proxies, colour tracker)
+
+**Pendulum, `Pendulum/pendulum_45/01`** (135 s, analysed from a 640 px, 20 fps
+proxy; `scripts/real_pendulum.py`; figure `docs/figures/iris_pendulum45_01.png`):
+
+- 93 cycles tracked (100% of frames); amplitude decays from 44.6° to 8.9°.
+- Small-oscillation period T0 = 1.4437 ± 0.0036 s (0.25%).
+- **Isochronism test:** the period depends on amplitude as the full pendulum
+  equation predicts, T(A) = T0 (1 + A²/16 + 11A⁴/3072); it beats the
+  constant-period (small-angle) law by ΔBIC = 16.
+- **Damping-law test:** the amplitude envelope is best described by quadratic
+  air drag, A(t) = A0 / (1 + κt), ahead of viscous-plus-dry friction
+  (ΔBIC = 37), exponential/viscous (ΔBIC = 224) and linear/dry (ΔBIC = 324).
+  IRIS derives its damping ground truth by assuming an exponential envelope;
+  on this clip the data reject that form.
+- g with IRIS rope_length 0.50 m: 9.47 m/s² (length to the bob's surface) or
+  10.10 m/s² (to its centre); the ±3% spread is the metadata's ambiguity, not
+  the timing. With g = 9.81 the effective length is 0.518 m.
+- Failure: metric scale from the bob's apparent size (assuming a 6.7 cm
+  tennis ball) gives L = 0.80 m, far from 0.50 m; the colour mask undercounts
+  the shaded ball. Metric quantities need a calibration object; time-based
+  quantities do not.
+
+**Sliding cone, `Sliding_cone/cone_45/01`** (4 s, 960 px, 60 fps proxy):
+
+- The board edge is at 28.5° in the image and the cone moves along it at
+  29.0°, consistent with sliding on the board.
+- Constant acceleration does not describe the image-plane motion (QFI = 284;
+  the acceleration grows over the slide). A flexible candidate (damped
+  oscillation) wins on BIC without any physical oscillation: equation
+  selection on raw image coordinates can be fooled without camera geometry.
+
+**Metadata audit (`parameters.json`, sliding_cone).** The listed incline
+angle disagrees with the listed triangle sides: cone_45 lists 45° while
+atan(0.43 / 0.6235) = 34.6°; cone_60 lists 60° while atan(0.40 / 0.36) = 48.0°,
+and its listed hypotenuse 0.84 m disagrees with √(0.40² + 0.36²) = 0.54 m;
+cone_80 lists 80° while atan(0.66 / 0.4374) = 56.5°. Either the angle field
+means something other than the incline angle, or the values are inconsistent;
+either way results should not be scored against it without clarification.
+
+Caveat: one clip per phenomenon, colour tracker (not SAM). Next: all takes of
+each setting, and the same analysis on SAM 3.1 tracks.
