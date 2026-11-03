@@ -1,40 +1,54 @@
-# Demo script
+# Demo video: 3 minutes, narrated
 
-## The 3-minute video
+Record the replay site full-screen (the deployed Space, or `site/index.html`
+served locally) plus two short terminal shots. About 150 words a minute; the
+script below is ~440 words. Times are targets, not rules.
 
-Judges watch this live in the final round, so it carries the project. One
-sentence per beat; let the screen do the explaining.
+**0:00–0:15 · Hook** (site hero, title visible)
+"Everyone in this hackathon uses SAM to measure the world. We measured SAM. And
+then we asked whether an AI scientist, seeing only through SAM, can discover a
+physical law nobody told it."
 
-| Time | On screen | Voice-over |
-|---|---|---|
-| 0:00–0:12 | A ball arcs across a cluttered tabletop scene; SAM's mask follows it. | "This universe has gravity, but not ours. Our AI has to work out its laws by watching." |
-| 0:12–0:35 | The question card, then experiments appearing one by one with SAM tracks and confidence. | "It designs its own experiments. It never gets coordinates, only video, measured by SAM 3.1." |
-| 0:35–0:55 | The agent's fitting code and its chosen law. | "It fits candidate laws in a sandbox and keeps the one the data supports." |
-| 0:55–1:15 | The sealed prediction card: hash appears. | "Then it seals a prediction for conditions it has never tried. The hash is locked before the test exists." |
-| 1:15–1:40 | The test plays; red marks land on (or miss) the ball. Grade appears. | "Now the universe runs the test. The grade comes from physics, not from another model." |
-| 1:40–2:20 | The results table: oracle vs camera vs camera with confidence, by camera quality; the decomposition. | "Across N universes: seeing through a camera costs this much. SAM's confidence buys back this much (or doesn't). And here is how much was the instrument versus the scientist." |
-| 2:20–2:40 | Click "Verify the ledger". | "Every run is a hash-chained ledger. Anyone can check the prediction came first." |
-| 2:40–3:00 | Architecture slide: SAM 3.1, Muse Spark, Spark Open, Wonder, Muse Code. (No Muse Image: it is not available in India.) | "SAM 3.1 as a measuring instrument, Muse Spark as the scientist. Code and data are open." |
+**0:15–1:05 · One real run** (click through the episode steps)
+"This universe has a hidden force law with made-up constants, so no model can
+recall the answer. Muse Spark designs its own experiments. The blue trace is
+everything it ever sees: SAM 3.1's track of the object.
+After its experiments it seals a prediction: the law, its constants, and an 80%
+interval for every point. The hash goes into a ledger before the test exists;
+here, thirteen seconds before.
+Now the universe runs new starting conditions the agent never tried. Orange is
+the sealed prediction; the video is what really happened. The grade comes from
+physics, not from another model."
 
-Record the live segments from **replays** of good runs, so the video never
-depends on network luck. Show one honest failure somewhere; it makes the
-successes credible.
+**1:05–1:35 · Where the error comes from** (decomposition bars)
+"Because we know the truth, we can split every error into three exact parts:
+the camera, the experiment design, and the reasoning. Across eighteen runs, the
+camera costs almost nothing. The agent's experiments are good. The error is
+reasoning: it settles on a cleaner law than its own data support."
 
-## Live demo (if asked)
+**1:35–2:05 · The instrument** (naming table, confidence chart, coverage rows)
+"SAM itself, measured on thousands of frames: sub-pixel away from the edges,
+five to eight times worse at the border. Name the object and it is found in
+only a third of attempts; point at it with a box and it never fails. Box
+confidence tracks error; word confidence just counts frames. And a textbook
+least-squares fit through SAM becomes overconfident: its 80% intervals hold the
+truth a fifth of the time."
 
-1. Have three finished runs ready in "Past runs" (one per family).
-2. Start one fresh run on `power_drag`, `sam_conf`, camera level 2. While it
-   runs (a few minutes), walk through a replay.
-3. When it finishes, show its grade and verify its ledger.
+**2:05–2:40 · Real footage** (pendulum charts and table)
+"Then real lab footage from IRIS, a published benchmark. Seven pendulum clips.
+The period to a tenth of a percent, and the full nonlinear law. But the damping
+is never exponential, in seven of seven clips, and exponential decay is exactly
+what the benchmark assumes to compute its damping ground truth."
 
-## Questions to be ready for
+**2:40–3:00 · Verify and close** (Check it yourself section, then repo)
+"Every run is a hash-chained ledger, every SAM response is cached and replays
+exactly, and the tests run on every push. Built during the hackathon with SAM
+3.1 and Muse Spark, for a few dollars of credits. The camera is not the
+bottleneck for AI scientists. Reasoning is."
 
-- *Why not colour thresholding?* Show the `classical` column and a frame with
-  decoys, the tether line, or the occluder.
-- *Couldn't it just recall physics?* The exponents and gravity are randomized
-  and non-textbook per seed; show two seeds with different laws.
-- *Is the grader an LLM?* No. Show `grade.py`: it is arithmetic on positions.
-- *Could it peek at the answer?* Tools are listed in `tools.py`; the law hash is
-  published at the start; the ledger proves commit-before-test.
-- *What did you build during the event?* All of it; the repo history and the
-  ledgers' timestamps show it.
+## Recording checklist
+
+- Browser at 1920×1080, zoom 110%, dark theme, notifications off.
+- Click the episode steps slowly; let each video loop once.
+- Record narration separately if easier, then lay it over the screen capture.
+- Keep the final cut at or under 3:00.

@@ -397,3 +397,23 @@ either way results should not be scored against it without clarification.
 
 Caveat: one clip per phenomenon, colour tracker (not SAM). Next: all takes of
 each setting, and the same analysis on SAM 3.1 tracks.
+
+## Results, Nov 3: seven real pendulum clips (4K, 60 fps, colour tracker)
+
+| Clip | T0 (s) | Swing | Full-law ΔBIC | Best damping law | ΔBIC vs exponential | L_eff (m) |
+|---|---|---|---|---|---|---|
+| pendulum_20/01 | 1.4416 ± 0.0022 | 33° → 10° | 9 | quadratic air drag | 150 | 0.516 |
+| pendulum_20/02 | 1.4388 ± 0.0048 | 32° → 5° | 2 | quadratic air drag | 118 | 0.514 |
+| pendulum_45/01 | 1.4440 ± 0.0010 | 46° → 9° | 109 | quadratic air drag | 338 | 0.518 |
+| pendulum_45/02 | 1.4455 ± 0.0052 | 47° → 3° | 8 | viscous + dry | 182 | 0.519 |
+| pendulum_45/03 | 1.4461 ± 0.0043 | 44° → 3° | 8 | viscous + dry | 190 | 0.520 |
+| pendulum_90/01 | 1.4485 ± 0.0113 | 80° → 2° | −32 | quadratic air drag | 168 | 0.521 |
+| pendulum_90/02 | 1.4484 ± 0.0160 | 89° → 3° | −40 | quadratic air drag | 289 | 0.521 |
+
+- Exponential (viscous) damping is rejected in all 7 clips.
+- The full-pendulum amplitude dependence is preferred in 5 of 7; both 90° clips
+  contradict it, with period standard errors 5–15× larger than the 20°/45°
+  clips, consistent with degraded tracking near the top of the swing.
+- T0 rises slightly with release angle (1.440 → 1.448 s), which a correct
+  amplitude correction should remove; residual large-angle tracking or
+  correction error is the likely cause. Reported, not explained away.

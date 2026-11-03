@@ -52,6 +52,58 @@ Planning documents: [`docs/build-plan.md`](docs/build-plan.md) (day by day) and
 
 ---
 
+## Results
+
+Measured on the code in this repository; every number below is reproducible
+from `runs/` (see `python -m phystax.bench.report` and `scripts/build_site.py`).
+
+**The AI scientist rarely fails to see; it fails to choose.** Muse Spark 1.3
+ran 18 full episodes (3 hidden-law systems × 3 seeds, camera level 2, exact
+coordinates vs SAM 3.1 box tracking). Through the camera, the median error
+splits into measurement 0.009, experiment design 0.000 and reasoning 0.226
+(n = 9; 95% bootstrap CI for reasoning [−0.008, 0.52]). On exact coordinates
+the error is the same kind: reasoning 0.195. The data were sufficient: the
+reference fitter, given exactly what the agent measured, recovers the law. The
+agent tends to commit to a cleaner law than the data support (for example
+linear drag where the hidden exponent was 1.21). Its own 80% intervals covered
+67% of the truth.
+
+**SAM 3.1 as a measuring instrument** (432 tracks, 3 systems × 4 camera levels
+× 3 seeds, compared frame by frame with simulator truth):
+
+- Away from the image border, SAM is a sub-pixel instrument: median interior
+  error 0.72, 1.54, 1.87, 2.05 px (box prompt) across camera levels 0–3, while
+  a classical tracker goes 3.1, 6.5, 7.1, 85 px. SAM never lost an object
+  that was in view.
+- Frames where the object touches the border carry 5–8× the error; flagging
+  them from SAM's own box catches all of them.
+- Naming the object is brittle: specific nouns were found in 4 of 12 attempts
+  and flipped with the rendering style; shape words and a frame-0 box always
+  worked.
+- Box-prompt confidence tracks error (Spearman −0.61 over 10,685 interior
+  frames; ≥ 0.94 confidence ≈ 0.6–0.85 px, < 0.89 ≈ 2.8 px). Word-prompt
+  confidence does not: it rises monotonically with the frame index.
+
+**Measurement error becomes overconfidence.** A least-squares fit told the true
+form keeps 100% pass rates through SAM box tracking, but its textbook 80%
+prediction intervals contain the truth only 17–25% of the time (vs 100% under
+independent noise of matched size), because SAM's errors are correlated from
+frame to frame. Inflating the covariance by the measured residual
+autocorrelation raises coverage to 46–58%: better, not solved.
+
+**Real lab footage** (IRIS benchmark, 7 pendulum clips at 4K/60 fps, colour
+tracker):
+
+- Period measured to 0.07–1.1% per clip (1.439–1.449 s across clips).
+- The damping envelope is never exponential: exponential (viscous) decay,
+  the form IRIS assumes to derive damping ground truth, is rejected in 7 of 7
+  clips (ΔBIC 118–338); quadratic air drag wins in 5, viscous + dry friction in 2.
+- The full pendulum law (period grows with amplitude) is preferred in 5 of 7
+  clips; at 80–90° release the test fails, together with 5–15× larger period
+  errors, which we attribute to tracking near the top of the swing.
+- `parameters.json` is internally inconsistent for the sliding cone (listed
+  angle 45° vs 34.6° from its own listed sides).
+
 ## Provenance
 
 Everything in this repository was built during the hackathon window (from
@@ -100,7 +152,7 @@ grader produces, and each has a clear way to be wrong.
 | H3 | Using confidence recovers part of the tax | `sam_conf` vs `sam`, same videos, same tracks | no improvement, or worse |
 | H4 | SAM 3.1 beats a classical tracker on cluttered, degraded scenes | `sam` vs `classical` | classical matches or wins |
 | H5 | Most of the tax is measurement, not reasoning (or the reverse) | the decomposition below | either way is a finding |
-| H6 | Meta models differ as experimentalists | Muse Spark vs Muse Wonder vs self-hosted Muse Glimmer on identical universes | no difference |
+| H6 | Meta models differ as experimentalists | Muse Spark vs other Meta models on identical universes (not run in this submission) | no difference |
 | H7 | AI scientists know how wrong they are | coverage of committed 80% intervals (target 0.80) and the interval score | coverage far from 0.80, or intervals no better than a constant width |
 
 **The decomposition (H5).** A second scientist, the *reference fitter*, is not
@@ -291,7 +343,7 @@ Every model has a job that would break the system if removed.
 | **Muse Spark 1.3** | the experimentalist | designs experiments, writes fitting code, commits predictions |
 | **Muse Spark Open** (Baseten, `meta-models/muse-spark-open-1026`) | second experimentalist | the open-weight arm of H6 (and the open-weight bonus prize) |
 | **Muse Wonder** | independent reviewer | challenges the draft before it is sealed; with/without is an ablation |
-| **Muse Glimmer 30B** (self-hosted on our own H100) | third experimentalist, text and tools only | the agent receives numbers, not pixels, so Glimmer can take part without vision; this is the open-weight entry, with provenance logs |
+| **Muse Glimmer 30B** (prepared, not run) | planned third experimentalist | serving scripts are included (`scripts/serve_glimmer*.sh`); our GPU driver (CUDA 12.2) is older than the CUDA 13 build SGLang requires, so no Glimmer results are reported |
 | ~~Muse Image~~ | not used | Meta's Geographic Use Policy bars Muse Image in India (access from India, and serving Indian end users). The renderer is procedural; optional realistic sprites are cut from CC0 photos with SAM 3.1 itself (see the build plan) |
 | **Muse Code** | the build harness | used to build and test this repo; the runtime ledger follows the cookbook's append-only audit-log design |
 

@@ -21,3 +21,9 @@ Stated up front, so results are read for what they are.
   Results produced with it are tagged and excluded from every report.
 - **Sandbox.** Agent code runs in a local subprocess; a hosted deployment
   should use a platform sandbox.
+- **Open-weight models.** Muse Glimmer serving is scripted but was not run:
+  the available GPU driver supports CUDA 12.2, below what the Glimmer-capable
+  SGLang build requires. No open-weight results are claimed.
+- **Real-footage tracking.** Real-clip results use a colour tracker, not SAM;
+  at 80–90° pendulum releases the tracking degrades (period errors 5–15×
+  larger), and the amplitude-dependence test fails there.
