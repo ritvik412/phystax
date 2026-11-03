@@ -411,6 +411,19 @@ uvicorn phystax.web.app:app --port 8000                            # the live la
 
 The UI plays H.264 video, so use Chrome, Edge or Safari for the demo.
 
+### Replay site (static, public, no keys)
+
+`scripts/build_site.py` turns finished runs into a static page: one real agent
+episode replayed step by step (experiments with SAM's tracks, the sealed
+prediction, the test, the grade), then the instrument study, the error
+decomposition and the real-footage results. It reads `runs/` only and makes no
+API calls, so it can be hosted anywhere and cannot spend credits.
+
+```bash
+python scripts/build_site.py                      # -> site/ ; open site/index.html
+hf upload <user>/phystax-lab site . --repo-type space   # a Static Space
+```
+
 ### Self-hosted Muse Glimmer (open-weight arm)
 
 Follows Meta's cookbook: a dedicated vLLM image (plain `pip install vllm` will

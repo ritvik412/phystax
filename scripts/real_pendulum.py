@@ -97,7 +97,9 @@ def analyse(x, y, fps, rope_length=None, bob_radius=0.0335):
            "isochronism_test": {"bic_nonlinear_pendulum": float(bic(rss_nl, 1, n)),
                                 "bic_isochronous": float(bic(rss_iso, 1, n))},
            "damping_test": fits, "damping_best": best,
-           "effective_length_if_g_9.81": float(9.81 * (T0 / (2 * np.pi)) ** 2)}
+           "effective_length_if_g_9.81": float(9.81 * (T0 / (2 * np.pi)) ** 2),
+           "series": {"peak_time_s": s.round(4).tolist(), "amplitude_rad": ap.round(5).tolist(),
+                      "period_s": Tc.round(5).tolist(), "period_amplitude_rad": Am.round(5).tolist()}}
     if rope_length:
         out["g_rope_to_surface"] = float(rope_length * (2 * np.pi / T0) ** 2)
         out["g_rope_to_centre"] = float((rope_length + bob_radius) * (2 * np.pi / T0) ** 2)
