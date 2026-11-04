@@ -161,6 +161,16 @@ def run_live(video_src: str | None, tap_frame: int, tap_x: float, tap_y: float, 
         tr = track_video(clip, ["object"], h)["object"]
         xs, ys_up, widths, meta = tr.x, tr.y, np.sqrt(np.nan_to_num(tr.area, nan=np.nan)), {"tracker": "classical"}
     t_all = np.arange(n) / fps
+    # Webcams often deliver ~15 real frames per second, repeated to fill 30 fps:
+    # an unchanged position is a copy, not a measurement. Drop the copies.
+    xs, ys_up = xs.copy(), ys_up.copy()
+    last = None
+    for f in range(n):
+        if np.isfinite(xs[f]) and np.isfinite(ys_up[f]):
+            if last is not None and abs(xs[f] - last[0]) < 0.05 and abs(ys_up[f] - last[1]) < 0.05:
+                xs[f] = ys_up[f] = np.nan
+            else:
+                last = (xs[f], ys_up[f])
     ok = np.isfinite(xs) & np.isfinite(ys_up) & (np.arange(n) >= tap_frame)
     idx = np.flatnonzero(ok)
     if len(idx) < 12:

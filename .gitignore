@@ -8,3 +8,4 @@ runs/
 .pytest_cache/
 data/
 site/
+space/

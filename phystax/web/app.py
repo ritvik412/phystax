@@ -44,9 +44,49 @@ def _keys_present(provider: str) -> bool:
     return bool(os.environ.get(env))
 
 
+# One server, three pages: the results site at /, the live experiment at /live,
+# the simulator lab at /lab. The site is the folder written by
+# scripts/build_site.py (PHYSTAX_SITE_DIR, default ./site).
+SITE_DIR = os.environ.get("PHYSTAX_SITE_DIR", os.path.join(os.getcwd(), "site"))
+
+
 @app.get("/")
-def index():
+def home():
+    p = os.path.join(SITE_DIR, "index.html")
+    return FileResponse(p) if os.path.exists(p) else FileResponse(os.path.join(STATIC, "index.html"))
+
+
+@app.get("/lab")
+def lab():
     return FileResponse(os.path.join(STATIC, "index.html"))
+
+
+@app.get("/data.js")
+def site_data():
+    p = os.path.join(SITE_DIR, "data.js")
+    if not os.path.exists(p):
+        raise HTTPException(404, "build the site first: python scripts/build_site.py")
+    return FileResponse(p, media_type="application/javascript")
+
+
+@app.get("/vendor/{path:path}")
+def site_vendor(path: str):
+    if ".." in path:
+        raise HTTPException(400, "bad path")
+    p = os.path.join(SITE_DIR, "vendor", path)
+    if not os.path.exists(p):
+        raise HTTPException(404, "not found")
+    return FileResponse(p)
+
+
+@app.get("/media/{name}")
+def site_media(name: str):
+    if "/" in name or ".." in name:
+        raise HTTPException(400, "bad name")
+    p = os.path.join(SITE_DIR, "media", name)
+    if not os.path.exists(p):
+        raise HTTPException(404, "not found")
+    return FileResponse(p, media_type="video/mp4")
 
 
 @app.get("/api/config")
@@ -225,6 +265,20 @@ async def live_prepare(video: UploadFile = File(...)):
     return {"id": job_id, "clip": f"/livefiles/{job_id}/clip.mp4", **meta}
 
 
+_LIVE_TIMES: list[float] = []
+
+
+def _live_allowed() -> tuple[bool, str]:
+    per_hour = int(os.environ.get("PHYSTAX_LIVE_PER_HOUR", "40"))
+    now = time.time()
+    with _lock:
+        _LIVE_TIMES[:] = [t for t in _LIVE_TIMES if now - t < 3600]
+        if len(_LIVE_TIMES) >= per_hour:
+            return False, f"Live runs are limited to {per_hour} per hour on this server; try again shortly."
+        _LIVE_TIMES.append(now)
+    return True, ""
+
+
 @app.post("/api/live/{job_id}/run")
 async def live_run(job_id: str, tap_frame: int = Form(...), tap_x: float = Form(...), tap_y: float = Form(...),
                    view_w: float = Form(...), view_h: float = Form(...), object_cm: float = Form(0.0),
@@ -236,6 +290,9 @@ async def live_run(job_id: str, tap_frame: int = Form(...), tap_x: float = Form(
         raise HTTPException(400, "tracker must be sam or classical")
     args = {"tap_frame": tap_frame, "tap_x": tap_x, "tap_y": tap_y, "view_w": view_w, "view_h": view_h,
             "object_cm": object_cm or None, "tracker": tracker, "agent": agent and tracker == "sam"}
+    ok, why = _live_allowed()
+    if not ok:
+        raise HTTPException(429, why)
     with _lock:
         LIVE[job_id] = {"id": job_id, "status": "running", "started": time.time()}
     threading.Thread(target=_live_work, args=(job_id, None, out_dir, args), daemon=True).start()

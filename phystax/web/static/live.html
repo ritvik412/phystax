@@ -49,7 +49,12 @@
   .result { display: none; margin-top: 32px; }
   .result.on { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 40px; }
   .big { font-size: clamp(48px, 7vw, 80px); line-height: 1; letter-spacing: -0.04em; font-weight: 600; }
-  .hash { font: 14px/1.6 var(--mono); color: var(--sealed); word-break: break-all; margin-top: 8px; }
+  .hash { font: 12px/1.6 var(--mono); color: var(--sealed); word-break: break-all; margin-top: 10px; }
+  details.proof summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center;
+                          padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); font-size: 14px; }
+  details.proof summary::-webkit-details-marker { display: none; }
+  details.proof[open] summary, details.proof summary:hover { border-color: var(--sealed); }
+  details.proof summary i { width: 8px; height: 8px; border-radius: 50%; background: var(--sealed); display: inline-block; }
   .meta { color: var(--muted); font-size: 15px; margin-top: 12px; }
   .legend { display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 12px; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
@@ -66,7 +71,8 @@
 </head>
 <body>
 <div class="wrap">
-  <header><strong>PhysTax</strong><a href="/">Back to the lab</a></header>
+  <header><strong><a href="/" style="color:inherit;text-decoration:none">PhysTax</a></strong>
+    <nav style="display:flex;gap:24px"><a href="/">Results</a><a href="/lab">Simulator</a></nav></header>
   <h1>Bring your own experiment.</h1>
   <p class="lede">Toss, drop, swing or roll something in front of a still camera. SAM 3.1 tracks it from one tap. Muse
      Spark sees the first half of the motion, decides what kind of motion it is, and seals a prediction for the second
@@ -115,7 +121,9 @@
   </div>
 
   <div class="result" id="result">
-    <div><div class="meta">Sealed prediction</div><div class="hash" id="r-hash"></div>
+    <div><details class="proof"><summary><i></i><span id="r-short">Sealed</span><span style="color:var(--muted)">· verify</span></summary>
+        <p class="meta">SHA-256 of the prediction, written to the run's ledger before the second half was read.</p>
+        <div class="hash" id="r-hash"></div></details>
       <p class="meta" id="r-laws"></p><p class="meta" id="r-why"></p></div>
     <div><div class="big" id="r-err"></div><p class="meta" id="r-grade"></p><p class="meta" id="r-scale"></p></div>
   </div>
@@ -239,6 +247,7 @@
     $("speed").onclick = () => { clip.playbackRate = clip.playbackRate === 1 ? 0.5 : 1; $("speed").textContent = clip.playbackRate === 1 ? "Half speed" : "Normal speed"; };
     const g = R.grade;
     $("r-hash").textContent = R.sha256;
+    $("r-short").textContent = `Sealed ${R.sha256.slice(0, 8)}`;
     $("r-laws").textContent = `The scientist's call: ${R.model_text}. Chosen by ${R.chosen_by}; sealed at
       ${new Date(R.sealed_at * 1000).toISOString().slice(11, 19)} UTC, before frames ${R.split_frame + 1} onward were read.`;
     $("r-why").textContent = R.rationale ? `"${R.rationale}"` : "";

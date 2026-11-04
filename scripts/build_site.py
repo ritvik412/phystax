@@ -209,28 +209,46 @@ def open_problem_p2(path="runs/open_problems/predictive_credit.jsonl"):
     return summarise(jsonl(path))
 
 
-def live_example(out_dir, base="runs/live"):
-    best = None
-    for p in glob.glob(os.path.join(base, "*", "result.json")):
+def live_runs(base="runs/live"):
+    """Live runs from the current pipeline (joint physical models, fixed seal)."""
+    out = []
+    for p in sorted(glob.glob(os.path.join(base, "*", "result.json"))):
         r = json.load(open(p))
-        key = (not r["grade"]["pass"], r["grade"]["error_share_of_path"])
-        if best is None or key < best[0]:
-            best = (key, os.path.dirname(p), r)
-    if not best:
+        if r.get("model_text") and os.path.exists(os.path.join(os.path.dirname(p), "clip.mp4")):
+            out.append((os.path.basename(os.path.dirname(p)), r))
+    return out
+
+
+def live_example(out_dir, choice=None, base="runs/live"):
+    runs = live_runs(base)
+    if choice:
+        runs = [x for x in runs if x[0] == choice]
+        if not runs:
+            raise SystemExit(f"no current-pipeline live run named {choice}; see --list-live")
+    if not runs:
         return None
-    _, d, r = best
+    rid, r = runs[-1] if choice else min(runs, key=lambda x: (not x[1]["grade"]["pass"], x[1]["grade"]["error_share_of_path"]))
+    d = os.path.join(base, rid)
     os.makedirs(os.path.join(out_dir, "media"), exist_ok=True)
     shutil.copy(os.path.join(d, "clip.mp4"), os.path.join(out_dir, "media", "live.mp4"))
     keep = ("size", "fps", "frames", "track", "split_frame", "first_frame", "last_frame", "model_text",
             "chosen_by", "rationale", "sealed", "sha256", "sealed_at", "grade", "scale", "boxes")
-    return {"video": "media/live.mp4", **{k: r.get(k) for k in keep}}
+    return {"id": rid, "video": "media/live.mp4", **{k: r.get(k) for k in keep}}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="site")
     ap.add_argument("--episode", default=None)
+    ap.add_argument("--live", default=None, help="id of the live run to feature (see --list-live)")
+    ap.add_argument("--list-live", action="store_true")
     a = ap.parse_args()
+    if a.list_live:
+        for rid, r in live_runs():
+            g = r["grade"]
+            print(f"{rid}  {r['model_text'][:40]:40s}  error {100 * g['error_share_of_path']:5.1f}%  "
+                  f"{'pass' if g['pass'] else 'fail'}  by {r['chosen_by']}")
+        return
     ref, agent = jsonl("runs/reference.jsonl"), jsonl("runs/agent.jsonl")
     spend = sum(e.get("usd", 0) for e in jsonl("runs/spend.jsonl"))
     calib = json.load(open("runs/calibration.json")) if os.path.exists("runs/calibration.json") else None
@@ -250,12 +268,15 @@ def main() -> None:
         "episode": episode_payload(run_dir, res, os.path.join(a.out, "media")) if run_dir else None,
         "p1": open_problem_p1(),
         "p2": open_problem_p2(),
-        "live": live_example(a.out),
+        "live": live_example(a.out, a.live),
         "repo": "https://github.com/ritvik412/phystax",
     }
     with open(os.path.join(a.out, "data.js"), "w") as f:
         f.write("window.PHYSTAX = " + json.dumps(data, default=float) + ";\n")
     shutil.copy(TEMPLATE, os.path.join(a.out, "index.html"))
+    vend = os.path.join(os.path.dirname(TEMPLATE), "vendor")
+    if os.path.isdir(vend):
+        shutil.copytree(vend, os.path.join(a.out, "vendor"), dirs_exist_ok=True)
     print(f"site -> {a.out}/ (episode: {run_dir or 'none found'}; "
           f"{data['counts']['reference_fits']} reference fits, {data['counts']['agent_episodes']} agent episodes, "
           f"{len(data['pendulums'])} real pendulum clips)")
