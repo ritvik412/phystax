@@ -28,6 +28,7 @@ Built for the Meta Global AI Developer Hackathon (Push the Frontier theme), Oct 
 
 ### At a glance
 
+- **Demo video (3 min):** https://youtu.be/c9G5n33THqM
 - **Live results site:** https://huggingface.co/spaces/ritvik360/phystax
   (the live webcam mode `/live` and the simulator `/lab` run locally:
   `pip install -r requirements.txt && uvicorn phystax.web.app:app`, with
