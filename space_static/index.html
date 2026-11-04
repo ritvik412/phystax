@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhysTax: an AI scientist that sees through a camera</title>
+<meta name="description" content="An AI scientist discovers hidden physical laws through SAM 3.1, seals its predictions, and is graded by reality. Where its errors come from, measured.">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<script src="vendor/katex/katex.min.js"></script>
+<style>
+  :root {
+    --bg: #1c1c1e; --raised: #242426; --well: #141415; --line: #38383a;
+    --text: #f5f5f7; --muted: #a1a1a6; --faint: #6e6e73;
+    --measure: #0a84ff; --sealed: #ff9f0a; --pass: #30d158; --fail: #ff6961;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.47 var(--font);
+         font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  a { color: var(--text); text-underline-offset: 3px; text-decoration-color: var(--faint); }
+  a:hover { text-decoration-color: var(--text); }
+  :focus-visible { outline: 2px solid var(--measure); outline-offset: 3px; border-radius: 4px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  header.top { display: flex; justify-content: space-between; align-items: baseline; padding: 24px 0 0; }
+  .mark { font-weight: 600; letter-spacing: -0.01em; }
+  .top nav a { color: var(--muted); text-decoration: none; margin-left: 24px; font-size: 15px; }
+  .top nav { white-space: nowrap; }
+  .top nav a.cta { color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  .top nav a.cta:hover { border-color: var(--text); }
+  details.proof { margin-top: 16px; font-size: 14px; color: var(--muted); }
+  details.proof summary { cursor: pointer; list-style: none; display: inline-flex; gap: 8px; align-items: center;
+                          padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); }
+  details.proof summary::-webkit-details-marker { display: none; }
+  details.proof summary:hover { border-color: var(--sealed); }
+  details.proof summary .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sealed); }
+  details.proof[open] summary { border-color: var(--sealed); }
+  details.proof .full { font: 12px/1.6 var(--mono); color: var(--sealed); word-break: break-all; margin-top: 10px; }
+  @media (max-width: 560px) { .top nav a:not(.cta) { display: none; } .hero { padding-top: 48px; } }
+  .top nav a:hover { color: var(--text); }
+
+  .hero { padding: 72px 0 32px; }
+  .hero h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.06; letter-spacing: -0.028em; font-weight: 600;
+             margin: 0; max-width: 18ch; }
+  .hero p { color: var(--muted); font-size: 19px; max-width: 60ch; margin: 24px 0 0; }
+
+  /* the episode player: the one bold element */
+  .player { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 24px; margin: 40px 0 16px; }
+  .stage { position: relative; aspect-ratio: 4 / 3; background: var(--well); border-radius: 14px; overflow: hidden; }
+  .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage .card { position: absolute; inset: 0; display: none; padding: 40px; flex-direction: column; justify-content: center; }
+  .stage .card.on { display: flex; }
+  .seal-law .katex { font-size: 1.05em; }
+  .eq { margin: 32px 0 8px; overflow-x: auto; color: var(--text); font-size: 1.15em; }
+  .eq .katex-display { margin: 0; text-align: left; }
+  .m .katex, .eq .katex { color: var(--text); }
+  figcaption .m .katex, p .m .katex { font-size: 1.02em; }
+  .seal-law { font-size: clamp(22px, 3vw, 32px); letter-spacing: -0.018em; line-height: 1.25; margin: 0 0 32px; max-width: 26ch; }
+  .seal-hash { font: 15px/1.6 var(--mono); color: var(--sealed); word-break: break-all; max-width: 40ch; }
+  .seal-time { color: var(--text); margin-top: 24px; font-size: 15px; }
+  .seal-note { color: var(--muted); margin-top: 16px; font-size: 15px; }
+  .grade-num { font-size: clamp(56px, 9vw, 104px); line-height: 1; letter-spacing: -0.04em; font-weight: 600; }
+  .grade-line { color: var(--muted); margin-top: 12px; max-width: 46ch; }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .steps button { all: unset; display: grid; grid-template-columns: 28px 1fr; align-items: baseline; width: 100%;
+                  padding: 8px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 15px; }
+  .steps button:hover { color: var(--text); }
+  .steps button[aria-current="step"] { background: var(--raised); color: var(--text); }
+  .steps .n { color: var(--faint); font-size: 13px; }
+  .steps .gap { height: 8px; }
+  .caption { color: var(--muted); font-size: 15px; min-height: 48px; max-width: 72ch; }
+  .caption b { color: var(--text); font-weight: 500; }
+  .legend { display: flex; gap: 24px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
+
+  section.finding { padding: 72px 0 0; }
+  section.finding h2 { font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.022em; line-height: 1.15; font-weight: 600;
+                       margin: 0; max-width: 24ch; }
+  section.finding > .wrap > p { color: var(--muted); max-width: 64ch; margin: 16px 0 0; }
+  .figrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; margin-top: 40px; }
+  figure { margin: 0; }
+  figcaption { color: var(--muted); font-size: 15px; margin-top: 12px; max-width: 52ch; }
+  svg text { fill: var(--muted); font: 12px var(--font); font-variant-numeric: tabular-nums; }
+  svg .axis { stroke: var(--line); }
+  table { border-collapse: collapse; font-size: 15px; width: 100%; }
+  th, td { text-align: left; padding: 10px 16px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 400; }
+  td.yes { color: var(--pass); } td.no { color: var(--faint); }
+  .scroll { overflow-x: auto; }
+  .bars { display: flex; flex-direction: column; gap: 24px; margin-top: 40px; max-width: 760px; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 8px; }
+  .bar-label span:last-child { color: var(--muted); }
+  .bar { display: flex; height: 28px; border-radius: 6px; overflow: hidden; background: var(--well); }
+  .bar div { height: 100%; }
+  .cov { display: flex; flex-direction: column; gap: 16px; }
+  .cov-row { display: grid; grid-template-columns: 170px 1fr; align-items: center; gap: 16px; font-size: 15px; }
+  .cov-track { position: relative; height: 24px; }
+  .cov-track::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 2px; background: var(--well); border-radius: 1px; }
+  .cov-target { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed var(--faint); }
+  .cov-dot { position: absolute; top: 6px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; }
+  .cov-axis { display: grid; grid-template-columns: 170px 1fr; gap: 16px; font-size: 12px; color: var(--faint); }
+  .cov-axis div { display: flex; justify-content: space-between; }
+  footer { color: var(--faint); font-size: 13px; padding: 96px 0 48px; }
+  footer a { color: var(--muted); }
+  .empty { color: var(--muted); padding: 40px; }
+  @media (max-width: 820px) {
+    .player { grid-template-columns: 1fr; }
+    .steps { flex-direction: row; flex-wrap: wrap; }
+    .steps button { width: auto; grid-template-columns: auto; }
+    .steps .n, .steps .gap { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="mark">PhysTax</span>
+    <nav><a href="#instrument">Results</a><a href="#open">Open problem</a><a href="/lab">Simulator</a><a href="/live" class="cta">Try it live</a><a id="repo-link" href="#">Code</a></nav>
+  </header>
+
+  <section class="hero" aria-labelledby="h1">
+    <h1 id="h1">An AI scientist meets a universe it has never seen.</h1>
+    <p id="hero-sub">It designs its own experiments, watches them only through Meta's SAM 3.1, seals a numeric
+       prediction, and is graded by what actually happens. This is one real run.</p>
+
+    <div class="player" id="player">
+      <div>
+        <div class="stage" id="stage">
+          <video id="vid" muted playsinline loop preload="auto"></video>
+          <canvas id="overlay" width="640" height="480" aria-hidden="true"></canvas>
+          <div class="card" id="card-seal" role="group" aria-label="Sealed prediction">
+            <p class="seal-law" id="seal-law"></p>
+            <p class="seal-time" id="seal-time"></p>
+            <details class="proof" id="seal-proof"><summary><span class="dot"></span><span id="seal-short">Sealed</span>
+              <span style="color:var(--muted)">· verify</span></summary>
+              <p>The prediction was hashed with SHA-256 and written to a hash-chained ledger before the test was rendered.
+                 Anyone can recompute the hash from the committed prediction in the repository's run folder.</p>
+              <div class="full" id="seal-hash"></div></details>
+          </div>
+          <div class="card" id="card-grade" role="group" aria-label="Grade">
+            <div class="grade-num" id="grade-num"></div>
+            <p class="grade-line" id="grade-line"></p>
+          </div>
+        </div>
+        <p class="caption" id="caption"></p>
+        <div class="legend" id="legend"></div>
+      </div>
+      <ol class="steps" id="steps" aria-label="Episode steps"></ol>
+    </div>
+  </section>
+</div>
+
+<section class="finding" id="live" aria-labelledby="h-live">
+  <div class="wrap">
+    <h2 id="h-live">Then we pointed it at the real world.</h2>
+    <p id="live-text">Record a few seconds with a webcam, tap the object once, and the same protocol runs on real footage.</p>
+    <div class="player" id="live-player" style="grid-template-columns: minmax(0,1fr) 248px">
+      <div><div class="stage" id="live-stage"><video id="live-vid" muted playsinline loop preload="auto"></video>
+        <canvas id="live-ov" aria-hidden="true"></canvas></div>
+        <div class="legend"><span><i style="background:var(--measure)"></i>SAM 3.1, seen before sealing</span>
+          <span><i style="background:var(--sealed)"></i>sealed prediction</span><span><i style="background:var(--faint)"></i>what happened</span></div>
+        <p class="caption" style="margin-top:24px">The law the scientist sealed, fitted to the first half (pixels, seconds, y up):</p>
+        <div class="eq" id="live-law" style="margin-top:8px"></div></div>
+      <div><div class="grade-num" id="live-err" style="font-size:64px"></div><p class="caption" id="live-verdict"></p>
+        <details class="proof"><summary><span class="dot"></span><span id="live-short">Sealed</span>
+          <span style="color:var(--muted)">· verify</span></summary>
+          <p>Hashed and written to the run's ledger before the second half of the track was read.</p>
+          <div class="full" id="live-hash"></div></details>
+        <p class="caption" style="margin-top:16px"><a href="/live">Try it with your own object →</a></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="finding" aria-labelledby="h-where">
+  <div class="wrap">
+    <h2 id="h-where">The agent rarely fails to see. It fails to choose.</h2>
+    <p id="where-text"></p>
+    <div class="eq" data-tex="\varepsilon_{\text{total}} \;=\; \underbrace{\varepsilon_{\text{measurement}}}_{\text{the camera}} \;+\; \underbrace{\varepsilon_{\text{design}}}_{\text{its experiments}} \;+\; \underbrace{\varepsilon_{\text{reasoning}}}_{\text{its choice of law}}"></div>
+    <div class="bars" id="bars"></div>
+  </div>
+</section>
+
+<section class="finding" id="credit" aria-labelledby="h-credit">
+  <div class="wrap">
+    <h2 id="h-credit">Does the agent's law carry the physics?</h2>
+    <p id="credit-text">A fresh forecaster predicts each episode's tests three ways: from the description alone, from the agent's
+       sealed law, and from the true law fitted to the same measurements. The gap between them is what the agent's
+       reasoning contributed, and what it left on the table.</p>
+<div class="eq" data-tex="\text{credit} \;=\; \varepsilon\big(\text{description}\big) \;-\; \varepsilon\big(\text{description} + \text{agent's sealed law}\big)"></div>
+    <div class="bars" id="credit-bars"></div>
+  </div>
+</section>
+
+<section class="finding" id="instrument" aria-labelledby="h-inst">
+  <div class="wrap">
+    <h2 id="h-inst">SAM 3.1, measured as an instrument.</h2>
+    <p>Every result below compares SAM's tracks with exact simulator positions, frame by frame.</p>
+    <div class="figrow">
+      <figure><div id="fig-degrade"></div>
+        <figcaption>Position error inside the frame as the camera gets worse. The classical tracker collapses at the
+          worst setting; SAM never lost an object that was in view.</figcaption></figure>
+      <figure><div id="fig-calib"></div>
+        <figcaption>Box-prompt confidence tracks error: confident frames are several times more accurate. Word-prompt
+          confidence does not; it rises with the frame number.</figcaption></figure>
+    </div>
+    <div class="figrow">
+      <figure><div class="scroll"><table id="naming"></table></div>
+        <figcaption>Same objects, same frames, different words. Specific nouns are found or missed depending on how the
+          scene is drawn; shape words and a box on the first frame always work.</figcaption></figure>
+      <figure><div id="fig-coverage" class="cov"></div>
+        <figcaption>A textbook least-squares fit assumes independent errors. SAM's errors are correlated from frame to
+          frame, so its 80% intervals hold the truth far less often. Correcting for the correlation recovers part of
+          the gap.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="finding" id="footage" aria-labelledby="h-real">
+  <div class="wrap">
+    <h2 id="h-real">On real lab footage, the laws hold up and one assumption does not.</h2>
+    <p id="real-text"></p>
+    <div class="eq" data-tex="T(A) = T_0\Big(1 + \tfrac{A^2}{16} + \tfrac{11\,A^4}{3072}\Big), \qquad A(t) = \frac{A_0}{1 + \kappa t}\;\;\text{(air drag)} \quad \text{vs.} \quad A(t) = A_0\, e^{-\zeta t}\;\;\text{(viscous)}"></div>
+    <div class="figrow">
+      <figure><div id="fig-period"></div>
+        <figcaption>The period shrinks as the swing decays, exactly as the full pendulum equation predicts. The
+          small-angle law (dashed) says it should not change.</figcaption></figure>
+      <figure><div id="fig-damp"></div>
+        <figcaption>Which friction law slows the swing? Quadratic air drag fits; the exponential decay used to derive the
+          benchmark's damping values does not.</figcaption></figure>
+    </div>
+    <div class="scroll" style="margin-top:40px"><table id="takes"></table></div>
+  </div>
+</section>
+
+<section class="finding" id="open" aria-labelledby="h-open">
+  <div class="wrap">
+    <h2 id="h-open">An open problem from Meta's own research.</h2>
+    <p id="open-text">Fit an ellipsoid through <span class="m" data-tex="n"></span> random points in <span class="m" data-tex="d"></span> dimensions. Meta's paper proves it
+       works below <span class="m" data-tex="n = d^2/4"></span> and fails above, and leaves the edge itself open. We measured that edge, sealed
+       predictions for larger dimensions before computing them, then graded them.</p>
+    <div class="eq" data-tex="\exists\, S \succ 0:\;\; x_i^{\top} S\, x_i = 1,\;\; i = 1,\dots,n, \qquad x_i \sim \mathcal{N}(0, I_d)"></div>
+    <div class="eq" data-tex="\Pr(\text{fit} \mid n, d) \;\approx\; \Big(1 + e^{\,(n - n_{50}(d))/w(d)}\Big)^{-1}"></div>
+    <div class="figrow">
+      <figure><div id="fig-p1"></div><figcaption>Where the transition sits, <span class="m" data-tex="n_{50}/d^2"></span>. Dots: measured centres with 95%
+        intervals (filled: calibration, open: sealed targets). Dashed: the asymptotic <span class="m" data-tex="\tfrac14"></span>. Blue: the
+        sealed conjecture <span class="m" data-tex="n_{50} = d(d+1)/4"></span>, falsified.</figcaption></figure>
+      <figure><div class="scroll"><table id="p1-table"></table></div><figcaption>Every sealed predictor at the target
+        dimensions. The Brier score grades the whole predicted transition curve against every trial; lower is
+        better.</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="finding" aria-labelledby="h-check">
+  <div class="wrap">
+    <h2 id="h-check">Check it yourself.</h2>
+    <p id="check-text"></p>
+  </div>
+</section>
+
+<div class="wrap"><footer id="foot"></footer></div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const D = window.PHYSTAX || {};
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const pct = (v, d = 0) => v == null ? "–" : (100 * v).toFixed(d) + "%";
+  const W = 640, H = 480, FPS = 30;
+  const CHANNEL = { oracle: "exact coordinates", sam_box: "SAM 3.1, box prompt", sam: "SAM 3.1, word prompt",
+                    sam_conf: "SAM 3.1, word prompt + confidence", sam_box_conf: "SAM 3.1, box + confidence",
+                    noisy_oracle: "coordinates + random noise", classical: "classical tracker" };
+  $("repo-link").href = D.repo || "#";
+
+  /* ---------- typesetting: plain-text laws -> paper-style maths ---------- */
+  const GREEK = ["alpha","beta","gamma","delta","epsilon","lambda","mu","nu","omega","theta","tau","sigma","rho","kappa","phi","psi","eta","zeta"];
+  function toTeX(src) {
+    let t = src.replace(/\*\*/g, "^");
+    t = t.replace(/(\d+(?:\.\d+)?)[eE]([+-]?\d+)/g, (m, a, b) => `${a}\\times10^{${+b}}`);
+    t = t.replace(/\b([a-zA-Z])_vec\b/g, "\\vec{$1}").replace(/\b([a-zA-Z])_hat\b/g, "\\hat{$1}");
+    t = t.replace(/\b([a-zA-Z])''/g, "\\ddot{$1}").replace(/\b([a-zA-Z])'/g, "\\dot{$1}");
+    t = t.replace(/sqrt\(([^()]*)\)/g, "\\sqrt{$1}").replace(/\bexp\(/g, "\\exp(").replace(/\bsign\(/g, "\\operatorname{sign}(");
+    GREEK.forEach((g) => { t = t.replace(new RegExp(`\\b${g}\\b`, "g"), `\\${g}`); });
+    t = t.replace(/\^\(([^()]*)\)/g, "^{$1}").replace(/\^(-?[\w.\\]+)/g, "^{$1}");
+    t = t.replace(/\*/g, "\\,").replace(/\b([a-zA-Z])_([a-zA-Z0-9]+)\b/g, "$1_{$2}");
+    return t;
+  }
+  const mt = (t) => window.katex ? katex.renderToString(t, { throwOnError: false }) : t;
+  document.querySelectorAll("[data-tex]").forEach((el) => { if (window.katex) katex.render(el.dataset.tex, el,
+    { displayMode: el.classList.contains("eq"), throwOnError: false }); else el.textContent = el.dataset.tex; });
+  function tex(src) {
+    if (!window.katex) return src.replace(/</g, "&lt;");
+    try { return katex.renderToString(toTeX(src), { throwOnError: false }); } catch (e) { return src; }
+  }
+  const num = (v) => Math.abs(v) >= 1e4 || (Math.abs(v) > 0 && Math.abs(v) < 1e-3) ? v.toExponential(3) : (+v.toPrecision(4)).toString();
+  // A law string mixes maths and words: typeset the parts with "=", keep prose as prose.
+  function typeset(law) {
+    return law.split(/(,\s*|;\s*|\s+with\s+|\s+toward\s+|\s+where\s+)/).map((seg) =>
+      /[=^]/.test(seg) ? tex(seg.trim()) : `<span style="color:var(--muted)">${seg.replace(/</g, "&lt;")}</span>`).join("");
+  }
+
+  /* ---------- episode player ---------- */
+  const E = D.episode;
+  const vid = $("vid"), cv = $("overlay"), ctx = cv.getContext("2d");
+  let steps = [], cur = 0, raf = 0;
+  function stepList() {
+    const s = [];
+    (E.experiments || []).forEach((e, i) => s.push({ kind: "exp", i, label: `Experiment ${i + 1}` }));
+    s.push({ kind: "gap" });
+    s.push({ kind: "seal", label: "Sealed prediction" });
+    (E.tests || []).forEach((t, i) => s.push({ kind: "test", i, label: `Test ${i + 1}` }));
+    s.push({ kind: "grade", label: "Grade" });
+    return s;
+  }
+  function fmtParams(p) {
+    return Object.entries(p || {}).map(([k, v]) => `${k.replace(/_px_s$/, " (px/s)").replace(/_px$/, " (px)")
+      .replace(/_deg$/, " (°)").replace(/_/g, " ")} ${(+v).toFixed(0)}`).join(", ");
+  }
+  function show(k) {
+    cur = k; cancelAnimationFrame(raf);
+    const s = steps[k];
+    document.querySelectorAll("#steps button").forEach((b) => { if (+b.dataset.k === k) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
+    ["card-seal", "card-grade"].forEach((c) => $(c).classList.remove("on"));
+    vid.style.visibility = cv.style.visibility = "visible";
+    ctx.clearRect(0, 0, W, H);
+    const legend = $("legend");
+    if (s.kind === "exp") {
+      const e = E.experiments[s.i];
+      vid.src = e.video; vid.play().catch(() => {});
+      $("caption").innerHTML = `The agent chose <b>${fmtParams(e.params)}</b>. The blue trace is what SAM 3.1 measured;
+        the agent never sees anything else.`;
+      legend.innerHTML = `<span><i style="background:${css("--measure")}"></i>SAM 3.1 track</span>`;
+      draw((f) => drawTrack(e.measured, f));
+    } else if (s.kind === "seal") {
+      vid.pause(); vid.style.visibility = cv.style.visibility = "hidden";
+      const c = E.commit || {};
+      const consts = (c.parameters || []).map((p) => `${p.name} = ${(+p.value).toPrecision(4)}`).join(", ");
+      $("seal-law").innerHTML = typeset(c.law_equation || "No law stated") +
+        (c.parameters && c.parameters.length ? `<br><span style="font-size:.75em;color:var(--muted)">with</span> ` +
+          c.parameters.map((p) => tex(`${p.name} = ${num(+p.value)}`)).join(", ") : "");
+      $("seal-hash").textContent = c.sha256 || "";
+      $("seal-short").textContent = c.sha256 ? `Sealed ${c.sha256.slice(0, 8)}` : "Sealed";
+      if (E.sealed_at) {
+        const t = new Date(E.sealed_at * 1000).toISOString().slice(11, 19);
+        const lead = E.revealed_at ? (E.revealed_at - E.sealed_at).toFixed(1) : null;
+        $("seal-time").textContent = `Sealed at ${t} UTC${lead ? `, ${lead} s before the test clip existed` : ""}.`;
+      }
+      $("card-seal").classList.add("on");
+      $("caption").innerHTML = `After ${E.experiments.length} experiments the agent committed to a law, its constants and
+        an 80% interval for every predicted point.`;
+      legend.innerHTML = "";
+    } else if (s.kind === "test") {
+      vid.src = E.tests[s.i]; vid.play().catch(() => {});
+      const preds = ((E.commit || {}).predictions || []).filter((p) => p.test_index === s.i);
+      $("caption").innerHTML = `New starting conditions the agent never tried. Orange marks are its sealed predictions;
+        the video is what the hidden law actually did.`;
+      legend.innerHTML = `<span><i style="background:${css("--sealed")}"></i>sealed prediction with 80% interval</span>`;
+      draw((f) => drawPred(preds, f));
+    } else if (s.kind === "grade") {
+      vid.pause(); vid.style.visibility = cv.style.visibility = "hidden";
+      const g = E.grade || {}, t = E.truth || {};
+      $("grade-num").textContent = pct(g.error, 1);
+      $("grade-num").style.color = g.pass ? css("--pass") : css("--fail");
+      const consts = Object.entries(t.constants || {}).map(([k, v]) => `${k} = ${(+v).toPrecision(4)}`).join(", ");
+      $("grade-line").textContent = `Prediction error as a share of the path. Under 5% passes, so this run
+        ${g.pass ? "passed" : "did not pass"}. Its intervals held the truth ${pct(g.coverage)} of the time.
+        The hidden law was the ${t.form || "?"} form, ${consts}.`;
+      $("card-grade").classList.add("on");
+      $("caption").innerHTML = `Every step above is in a hash-chained ledger of ${E.ledger_entries} entries. This run cost
+        $${(+E.cost_usd || 0).toFixed(3)} in model calls.`;
+      legend.innerHTML = "";
+    }
+  }
+  function draw(fn) {
+    const tick = () => { ctx.clearRect(0, 0, W, H); fn(Math.floor((vid.currentTime || 0) * FPS)); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+  }
+  function drawTrack(bodies, frame) {
+    ctx.lineWidth = 3; ctx.strokeStyle = css("--measure"); ctx.fillStyle = css("--measure");
+    Object.values(bodies || {}).forEach((s) => {
+      ctx.beginPath(); let pen = false;
+      for (let f = 0; f <= Math.min(frame, s.x.length - 1); f++) {
+        if (s.x[f] == null) { pen = false; continue; }
+        const x = s.x[f], y = H - s.y[f];
+        if (!pen) { ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const f = Math.min(frame, s.x.length - 1);
+      if (s.x[f] != null) { ctx.beginPath(); ctx.arc(s.x[f], H - s.y[f], 6, 0, 2 * Math.PI); ctx.fill(); }
+    });
+  }
+  function drawPred(preds, frame) {
+    const times = E.probe_times || [];
+    ctx.strokeStyle = css("--sealed"); ctx.fillStyle = css("--sealed"); ctx.lineWidth = 2;
+    preds.forEach((p) => p.x.forEach((x, k) => {
+      const on = times[k] == null || frame >= Math.round(times[k] * FPS) - 10;
+      ctx.globalAlpha = on ? 1 : 0.18;
+      const y = H - p.y[k];
+      if (p.x_lo) { ctx.strokeRect(p.x_lo[k], H - p.y_hi[k], p.x_hi[k] - p.x_lo[k], p.y_hi[k] - p.y_lo[k]); }
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, 2 * Math.PI); ctx.fill();
+    }));
+    ctx.globalAlpha = 1;
+  }
+  if (E && E.experiments && E.experiments.length) {
+    steps = stepList();
+    $("steps").innerHTML = steps.map((s, k) => s.kind === "gap" ? `<li class="gap" aria-hidden="true"></li>` :
+      `<li><button data-k="${k}"><span class="n">${k < E.experiments.length ? k + 1 : ""}</span><span>${s.label}</span></button></li>`).join("");
+    document.querySelectorAll("#steps button").forEach((b) => b.addEventListener("click", () => show(+b.dataset.k)));
+    const SYS = { orbit: "a marble orbiting a planet", projectile: "a launched ball", tethered_block: "a block on a spring" };
+    $("hero-sub").textContent = `It designs its own experiments, watches them only through Meta's SAM 3.1, seals a numeric
+      prediction, and is graded by what actually happens. This is one real run, on ${SYS[E.system] || "a hidden-law system"}
+      whose law it was never told.`;
+    show(0);
+  } else {
+    $("player").innerHTML = `<p class="empty">No agent episode was found in runs/. Run the agent grid, then rebuild the site.</p>`;
+  }
+
+  /* ---------- small SVG chart kit ---------- */
+  function chart(el, { xs, series, xlab, ylab, ylog = false, yfmt = (v) => v, xticks, ylim, ref }) {
+    const w = 460, h = 280, m = { l: 48, r: 16, t: 16, b: 40 };
+    const all = series.flatMap((s) => s.y).filter((v) => v != null && isFinite(v));
+    let [y0, y1] = ylim || [Math.min(...all), Math.max(...all)];
+    const ty = (v) => ylog ? Math.log10(v) : v;
+    const sx = (v) => m.l + (v - xs[0]) / (xs[xs.length - 1] - xs[0] || 1) * (w - m.l - m.r);
+    const sy = (v) => h - m.b - (ty(v) - ty(y0)) / (ty(y1) - ty(y0) || 1) * (h - m.t - m.b);
+    let g = `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="${ylab} by ${xlab}">`;
+    g += `<line class="axis" x1="${m.l}" x2="${w - m.r}" y1="${h - m.b}" y2="${h - m.b}"/>`;
+    (xticks || xs).forEach((x) => { g += `<text x="${sx(x)}" y="${h - m.b + 18}" text-anchor="middle">${x}</text>`; });
+    const yt = ylog ? [y0, Math.sqrt(y0 * y1), y1] : [y0, (y0 + y1) / 2, y1];
+    yt.forEach((v) => { g += `<text x="${m.l - 8}" y="${sy(v) + 4}" text-anchor="end">${yfmt(v)}</text>`; });
+    g += `<text x="${(m.l + w - m.r) / 2}" y="${h - 4}" text-anchor="middle">${xlab}</text>`;
+    if (ref != null) g += `<line x1="${m.l}" x2="${w - m.r}" y1="${sy(ref)}" y2="${sy(ref)}" stroke="${css("--faint")}" stroke-dasharray="4 4"/>`;
+    series.forEach((s) => {
+      const pts = s.y.map((v, i) => v == null ? null : [sx(s.x ? s.x[i] : xs[i]), sy(v)]).filter(Boolean);
+      if (s.line !== false) g += `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${pts.map((p) => p.join(",")).join(" ")}"/>`;
+      if (s.dots) pts.forEach((p) => { g += `<circle cx="${p[0]}" cy="${p[1]}" r="2.5" fill="${s.color}"/>`; });
+    });
+    const leg = series.filter((s) => s.label).map((s) =>
+      `<span><i style="background:${s.color}"></i>${s.label}</span>`).join("");
+    el.innerHTML = g + `</svg>` + (leg ? `<div class="legend">${leg}</div>` : "");
+  }
+
+  /* ---------- where the error comes from ---------- */
+  const dec = (D.decomposition || []).filter((d) => d.model !== "reference");
+  if (dec.length) {
+    const cam = dec.find((d) => d.channel === "sam_box") || dec[0];
+    const share = cam.total.median ? cam.measurement.median / cam.total.median : null;
+    $("where-text").textContent = `Each run's error splits exactly into what the camera cost, what the agent's choice of
+      experiments cost, and what its reasoning cost, by refitting the true law to the very data the agent saw. Through
+      the camera (${cam.n} runs), measurement accounts for ${pct(share)} of the error. The rest is the agent settling on a
+      law that looks cleaner than the data supports.`;
+    const maxT = Math.max(...dec.map((d) => Math.max(d.total.median, 1e-9)));
+    $("bars").innerHTML = dec.map((d) => {
+      const seg = (v, c) => `<div style="width:${Math.max(0, 100 * v / maxT)}%;background:${c}" title="${v.toFixed(3)}"></div>`;
+      return `<div><div class="bar-label"><span>${d.model === "spark" ? "Muse Spark" : d.model === "glimmer" ? "Muse Glimmer" : d.model}, ${CHANNEL[d.channel] || d.channel}</span>
+        <span>total ${pct(d.total.median, 1)}: measurement ${pct(d.measurement.median, 1)}, design ${pct(d.design.median, 1)},
+        reasoning ${pct(d.reasoning.median, 1)} (n = ${d.n})</span></div>
+        <div class="bar">${seg(d.measurement.median, css("--measure"))}${seg(Math.max(0, d.design.median), css("--faint"))}${seg(d.reasoning.median, "#c7c7cc")}</div></div>`;
+    }).join("") + `<div class="legend"><span><i style="background:${css("--measure")}"></i>measurement</span>
+      <span><i style="background:${css("--faint")}"></i>experiment design</span><span><i style="background:#c7c7cc"></i>reasoning</span></div>`;
+  } else { $("where-text").textContent = "Agent results appear here once the agent grid has run."; }
+
+  /* ---------- instrument ---------- */
+  const P = D.perception || [];
+  if (P.length) {
+    const lv = [...new Set(P.map((r) => r.level))].sort();
+    const ser = (t, color, label) => ({ y: lv.map((l) => (P.find((r) => r.level === l && r.tracker === t) || {}).median_px ?? null), color, label, dots: true });
+    chart($("fig-degrade"), { xs: lv, xlab: "camera quality (0 clean, 3 worst)", ylab: "interior error", ylog: true,
+      yfmt: (v) => v.toFixed(v < 1 ? 1 : 0) + " px",
+      series: [ser("classical", css("--faint"), "classical"), ser("sam_concept", css("--muted"), "SAM word"), ser("sam_box", css("--measure"), "SAM box")] });
+  }
+  const C = (D.calibration || {}).bins || [];
+  if (C.length) {
+    const xs = C.map((b, i) => i);
+    chart($("fig-calib"), { xs, xticks: [], xlab: "SAM box confidence, low to high", ylab: "median error",
+      yfmt: (v) => v.toFixed(1) + " px", ylim: [0, Math.max(...C.map((b) => b[2])) * 1.1],
+      series: [{ y: C.map((b) => b[2]), color: css("--measure"), dots: true }] });
+  }
+  const N = D.naming;
+  if (N) {
+    $("naming").innerHTML = `<tr><th>Prompt</th><th>Lab-style scene</th><th>Abstract scene</th></tr>` +
+      N.rows.map((r, i) => `<tr><td>${r}</td><td class="${N.lab[i] ? "yes" : "no"}">${N.lab[i] ? "found" : "not found"}</td>
+        <td class="${N.abstract[i] ? "yes" : "no"}">${N.abstract[i] ? "found" : "not found"}</td></tr>`).join("");
+  }
+  const COV = (D.coverage || []).filter((c) => c.textbook != null && c.channel !== "oracle");
+  if (COV.length) {
+    const dot = (v, c) => v == null ? "" : `<span class="cov-dot" style="left:${100 * v}%;background:${c}" title="${pct(v)}"></span>`;
+    $("fig-coverage").innerHTML = COV.map((c) => `<div class="cov-row"><span>${(CHANNEL[c.channel] || c.channel)
+        .replace("SAM 3.1, ", "SAM ")}</span><div class="cov-track"><span class="cov-target" style="left:80%"></span>
+        ${dot(c.textbook, css("--faint"))}${dot(c.corrected, css("--measure"))}</div></div>`).join("") +
+      `<div class="cov-axis"><span></span><div><span>0%</span><span>50%</span><span>80% target</span></div></div>
+       <div class="legend"><span><i style="background:${css("--faint")}"></i>textbook intervals</span>
+       <span><i style="background:${css("--measure")}"></i>corrected for correlated errors</span></div>`;
+  }
+
+  /* ---------- real footage ---------- */
+  const R = D.pendulums || [];
+  const main = R.find((r) => r.series && /45/.test(r.label)) || R.find((r) => r.series);
+  const best = (r) => (r.damping_best.match(/\(([^)]+)\)/) || [0, r.damping_best])[1];
+  const dExp = (r) => r.damping_bic["exponential (viscous)"] - r.damping_bic[r.damping_best];
+  if (R.length) {
+    const rejected = R.filter((r) => dExp(r) > 10).length;
+    $("real-text").textContent = `Pendulum clips from IRIS, a public benchmark of 4K lab recordings with measured ground
+      truth. Across ${R.length} clips the period is measured from the video alone, and exponential damping, the form the
+      benchmark assumes to derive its damping values, is rejected in ${rejected} of ${R.length}.`;
+    $("takes").innerHTML = `<tr><th>Clip</th><th>Period</th><th>Swing</th><th>Full law preferred by</th><th>Best damping law</th><th>Ahead of exponential by</th></tr>` +
+      R.map((r) => `<tr><td>${r.label}</td><td>${r.T0.toFixed(4)} ± ${r.T0_se.toFixed(4)} s</td>
+        <td>${r.amplitude_deg[0].toFixed(0)}° to ${r.amplitude_deg[1].toFixed(0)}°</td>
+        <td>ΔBIC ${r.isochronism_dbic.toFixed(0)}</td><td>${best(r)}</td><td>ΔBIC ${dExp(r).toFixed(0)}</td></tr>`).join("");
+  }
+  if (main) {
+    const s = main.series, deg = (v) => v * 180 / Math.PI;
+    const A = s.period_amplitude_rad, T = s.period_s;
+    const order = A.map((a, i) => i).sort((i, j) => A[i] - A[j]);
+    const xs = order.map((i) => +deg(A[i]).toFixed(2));
+    const T0 = main.T0, law = order.map((i) => T0 * (1 + A[i] ** 2 / 16 + 11 * A[i] ** 4 / 3072));
+    const med = [...T].sort((a, b) => a - b)[Math.floor(T.length / 2)];
+    chart($("fig-period"), { xs, xticks: [Math.round(xs[0]), Math.round(xs[xs.length - 1])], xlab: "swing amplitude (degrees)", ylab: "period",
+      yfmt: (v) => v.toFixed(3) + " s",
+      series: [{ x: xs, y: order.map((i) => T[i]), color: css("--muted"), dots: true, line: false },
+               { x: xs, y: law, color: css("--measure"), label: "full pendulum law" },
+               { x: xs, y: xs.map(() => med), color: css("--faint"), dash: true, label: "small-angle law" }] });
+    const ts = s.peak_time_s, amp = s.amplitude_rad.map(deg);
+    const pe = main.damping_params || {};
+    const curve = (k, f) => pe[k] ? ts.map((t) => deg(f(pe[k], t))) : null;
+    const hyp = curve("hyperbolic (quadratic air drag)", (p, t) => p[0] / (1 + p[1] * t));
+    const exp = curve("exponential (viscous)", (p, t) => p[0] * Math.exp(-p[1] * t));
+    chart($("fig-damp"), { xs: ts, xticks: [0, Math.round(ts[ts.length - 1])], xlab: "time (s)", ylab: "amplitude",
+      yfmt: (v) => v.toFixed(0) + "°",
+      series: [{ x: ts, y: amp, color: css("--muted"), dots: true, line: false },
+               exp && { x: ts, y: exp, color: css("--faint"), dash: true, label: "exponential (viscous)" },
+               hyp && { x: ts, y: hyp, color: css("--measure"), label: "quadratic air drag" }].filter(Boolean) });
+  }
+  if (!R.length) { $("real-text").textContent = "Real-footage results appear here once real_pendulum.py has run."; }
+
+
+  /* ---------- live experiment replay ---------- */
+  const L = D.live;
+  if (L) {
+    const lv = $("live-vid"), lc = $("live-ov"), lx = lc.getContext("2d");
+    lc.width = L.size[0]; lc.height = L.size[1]; $("live-stage").style.aspectRatio = `${L.size[0]} / ${L.size[1]}`;
+    lv.src = L.video; lv.playbackRate = 0.5; lv.play().catch(() => {});
+    $("live-err").textContent = pct(L.grade.error_share_of_path, 1);
+    $("live-err").style.color = L.grade.pass ? css("--pass") : css("--fail");
+    $("live-verdict").textContent = `The scientist's call after half the motion: ${L.model_text}. That is the prediction
+      error on the unseen half, as a share of the path (${L.chosen_by} chose the law).`;
+    $("live-hash").textContent = L.sha256;
+    const C = (L.sealed || {}).constants || {}, law = (L.sealed || {}).laws || {};
+    const sgn = (x) => (+x < 0 ? "-" : "+"), ab = (x) => num(Math.abs(+x));
+    const axis = (k, v) => { const c = C[k] || {};
+      if (law[k] === "linear") return String.raw`${v}(t) = ${num(+c.s0)} ${sgn(c.v)} ${ab(c.v)}\,t`;
+      if (law[k] === "const_acc") return String.raw`${v}(t) = ${num(+c.s0)} ${sgn(c.v)} ${ab(c.v)}\,t ${sgn(c.a)} \tfrac12\,${ab(c.a)}\,t^2`;
+      if (law[k] === "damped_osc") return String.raw`${v}(t) = ${num(+c.c)} + e^{-${num(+c.b)}\,t}\big(${num(+c.A)}\cos ${num(+c.w)}t + ${num(+c.B)}\sin ${num(+c.w)}t\big)`;
+      return String.raw`${v}(t) = ${num(+c.c)} + ${num(+c.A)}\,e^{-${num(+c.k)}\,t}`; };
+    if (window.katex && law.x) katex.render(String.raw`\begin{aligned} ${axis("x", "x")} \\ ${axis("y", "y")} \end{aligned}`, $("live-law"), { displayMode: true, throwOnError: false });
+    $("live-short").textContent = `Sealed ${L.sha256.slice(0, 8)}`;
+    const Hh = L.size[1], tx = L.track.x, ty = L.track.y, S = L.sealed, B = L.boxes || [];
+    const tick = () => {
+      const f = Math.min(L.frames - 1, Math.floor(lv.currentTime * L.fps));
+      lx.clearRect(0, 0, lc.width, lc.height); lx.lineWidth = 3;
+      const path = (a, b, c, dash) => { lx.strokeStyle = c; lx.setLineDash(dash || []); lx.beginPath(); let pen = false;
+        for (let j = a; j <= Math.min(b, f); j++) { if (tx[j] == null) { pen = false; continue; }
+          if (!pen) { lx.moveTo(tx[j], Hh - ty[j]); pen = true; } else lx.lineTo(tx[j], Hh - ty[j]); }
+        lx.stroke(); lx.setLineDash([]); };
+      path(L.first_frame, L.split_frame, css("--measure"));
+      if (f > L.split_frame) {
+        path(L.split_frame, L.last_frame, css("--faint"), [6, 6]);
+        lx.fillStyle = css("--sealed");
+        S.frames.forEach((fr, i) => { if (fr <= f + 6) { lx.beginPath(); lx.arc(S.x[i], Hh - S.y[i], 4, 0, 2 * Math.PI); lx.fill(); } });
+      }
+      if (B[f]) { const [l, t, r, b] = B[f]; lx.strokeStyle = css("--measure"); lx.lineWidth = 2.5; lx.strokeRect(l, t, r - l, b - t); }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  } else { $("live-player").innerHTML = `<p class="empty">Record one with /live on the lab server, then rebuild the site.</p>`; }
+
+  /* ---------- P2 predictive credit ---------- */
+  const C2 = D.p2;
+  if (C2 && C2.episodes) {
+    const me = C2.median_error, mx = Math.max(...Object.values(me).filter((v) => v != null), 1e-9);
+    const lab = { description: "Description only", agent_card: "With the agent's sealed law", reference: "With the true law, fitted (control)" };
+    $("credit-bars").innerHTML = Object.keys(lab).filter((k) => me[k] != null).map((k) =>
+      `<div><div class="bar-label"><span>${lab[k]}</span><span>median forecast error ${pct(me[k], 1)}</span></div>
+       <div class="bar"><div style="width:${100 * me[k] / mx}%;background:${k === "agent_card" ? css("--measure") : k === "reference" ? "#c7c7cc" : css("--faint")}"></div></div></div>`).join("");
+    const pc = C2.predictive_credit, gp = C2.gap_to_reference;
+    $("credit-text").textContent += ` Across ${C2.episodes} episodes, the agent's law lowered the forecast error by
+      ${pct(pc.median, 1)} (median; 95% interval ${pct(pc.ci95[0], 1)} to ${pct(pc.ci95[1], 1)}), and the true law would have lowered
+      it by a further ${pct(gp.median, 1)}.`;
+  } else { $("credit-bars").innerHTML = `<p class="empty">Predictive-credit results appear here once the run finishes.</p>`; }
+
+  /* ---------- P1 open problem ---------- */
+  const P1 = D.p1;
+  if (P1) {
+    const all = P1.calibration.concat(P1.target), ds = all.map((p) => p.d);
+    const d0 = Math.min(...ds), d1 = Math.max(...ds);
+    const curve = []; for (let d = d0; d <= d1; d += 0.5) curve.push(d);
+    const y = (p) => p.n50 / (p.d * p.d);
+    const w = 460, h = 280, m = { l: 52, r: 16, t: 16, b: 40 };
+    const ys = all.flatMap((p) => [p.ci[0] / (p.d * p.d), p.ci[1] / (p.d * p.d)]).concat([0.25]);
+    const y0 = Math.min(...ys) - 0.005, y1 = Math.max(...ys) + 0.005;
+    const sx = (d) => m.l + (d - d0) / (d1 - d0) * (w - m.l - m.r), sy = (v) => h - m.b - (v - y0) / (y1 - y0) * (h - m.t - m.b);
+    let g = `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="transition centre over d squared">`;
+    g += `<line class="axis" x1="${m.l}" x2="${w - m.r}" y1="${h - m.b}" y2="${h - m.b}"/>`;
+    g += `<line x1="${m.l}" x2="${w - m.r}" y1="${sy(0.25)}" y2="${sy(0.25)}" stroke="${css("--faint")}" stroke-dasharray="4 4"/>`;
+    g += `<polyline fill="none" stroke="${css("--measure")}" stroke-width="2" points="${curve.map((d) => sx(d) + "," + sy((d + 1) / (4 * d))).join(" ")}"/>`;
+    all.forEach((p) => { const tgt = P1.target.includes(p);
+      g += `<line x1="${sx(p.d)}" x2="${sx(p.d)}" y1="${sy(p.ci[0] / (p.d * p.d))}" y2="${sy(p.ci[1] / (p.d * p.d))}" stroke="${css("--text")}"/>`;
+      g += `<circle cx="${sx(p.d)}" cy="${sy(y(p))}" r="4" fill="${tgt ? css("--bg") : css("--text")}" stroke="${css("--text")}" stroke-width="1.5"/>`; });
+    [d0, d1].concat(P1.target.map((p) => p.d)).forEach((d) => { g += `<text x="${sx(d)}" y="${h - m.b + 18}" text-anchor="middle">${d}</text>`; });
+    [0.25, y1].concat(Math.abs(y0 - 0.25) > 0.015 ? [y0] : []).forEach((v) => {
+      g += `<text x="${m.l - 8}" y="${sy(v) + 4}" text-anchor="end">${v.toFixed(3)}</text>`; });
+    g += `<text x="${(m.l + w - m.r) / 2}" y="${h - 4}" text-anchor="middle">dimension d</text></svg>`;
+    $("fig-p1").innerHTML = g;
+    const G = (P1.grade || {}).table || {};
+    const name = { asymptotic_step: "Asymptotic " + mt("d^2/4"), statistical_dimension: "Conjecture " + mt("d(d+1)/4"), finite_size_fit: "Finite-size fit", muse_spark: "Muse Spark" };
+    $("p1-table").innerHTML = `<tr><th>Sealed predictor</th><th>d</th><th>Predicted</th><th>Measured</th><th>In 95% interval</th><th>Brier</th></tr>` +
+      Object.entries(G).flatMap(([k, rows]) => Object.entries(rows).sort((a, b) => +a[0] - +b[0]).map(([d, r]) =>
+        `<tr><td>${name[k] || k}</td><td>${d}</td><td>${r.pred_n50.toFixed(1)}</td><td>${r.meas_n50.toFixed(1)}</td>
+         <td class="${r.n50_inside_95ci ? "yes" : "no"}">${r.n50_inside_95ci ? "yes" : "no"}</td><td>${r.brier.toFixed(4)}</td></tr>`)).join("");
+    if (!P1.grade) $("p1-table").innerHTML = `<tr><td class="empty">Run ellipsoid_extra grade, then rebuild.</td></tr>`;
+  } else { $("fig-p1").innerHTML = `<p class="empty">Open-problem results appear here once the run finishes.</p>`; }
+
+  /* ---------- check it ---------- */
+  const c = D.counts || {};
+  $("check-text").innerHTML = `Every run writes a hash-chained ledger: the hidden law's hash before the first experiment,
+    the sealed prediction before the test, then the grade and the reveal. Every SAM response is cached, so results replay
+    exactly. ${c.agent_episodes || 0} agent runs and ${c.reference_fits || 0} reference fits produced the numbers on this page,
+    for $${(D.spend_usd || 0).toFixed(2)} in API spend. Code, tests and data pipeline: <a href="${D.repo}">${D.repo.replace("https://", "")}</a>.`;
+  $("foot").innerHTML = `Built ${D.built || ""}. Simulated scenes are 2-D renders; real-footage results use a colour tracker
+    unless stated. Limitations are listed in the repository.`;
+})();
+</script>
+</body>
+</html>

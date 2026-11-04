@@ -24,7 +24,7 @@ colorTo: blue
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: An AI scientist that seals predictions and is graded by reality
+short_description: AI scientist that seals predictions, graded by reality
 ---
 
 # {title}
