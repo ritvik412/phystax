@@ -25,7 +25,12 @@ object names but not to box prompts, box confidence predictive of error, word
 confidence not) and show that correlated tracking errors make textbook
 uncertainty badly overconfident. On 7 real 4K pendulum clips from the IRIS
 benchmark, exponential damping, the form its ground truth assumes, is rejected
-in every clip. A live mode lets anyone record an experiment with a webcam, tap
+in every clip. On an open problem from Meta's own research (the edge of Gaussian ellipsoid
+fitting, left open by Arslan's strict-threshold theorem), four predictions were
+sealed before larger dimensions were computed: Muse Spark's landed inside the
+measured interval at d = 30, 36 and 44, while our own conic-geometry conjecture
+was falsified. In a Predictive Credit test, the agent's sealed laws cut a fresh
+forecaster's error from 49.8% to 19.0%. A live mode lets anyone record an experiment with a webcam, tap
 the object and watch a sealed prediction meet reality.
 
 **Public GitHub Repository:** https://github.com/ritvik412/phystax

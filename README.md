@@ -141,6 +141,54 @@ protocol applied to research questions:
   law lowers forecast error; the gap to the reference is what its reasoning
   left on the table.
 
+### Open problem P1: the edge of Gaussian ellipsoid fitting (sealed, then measured)
+
+Arslan's theorem (Meta AI Research, Oct 2026) settles n/d² away from 1/4 and
+makes no claim at 1/4. We measured the edge at finite d by semidefinite
+programming (80 trials per point; calibration d = 8–24; targets d = 30, 36, 44
+measured only after four predictors were sealed in a hash-chained ledger).
+
+| d | measured centre n50 [95% CI] | n50/d² | measured width |
+|---|---|---|---|
+| 30 | 227.5 [224.9, 229.8] | 0.2528 | 6.4 |
+| 36 | 326.1 [323.0, 329.4] | 0.2516 | 8.2 |
+| 44 | 490.0 [484.5, 494.0] | 0.2531 | 10.4 |
+
+| sealed predictor | centre inside 95% CI (30 / 36 / 44) | Brier of the full curve (30 / 36 / 44) |
+|---|---|---|
+| asymptotic d²/4 (step) | yes / yes / **no** | 0.0330 / 0.0268 / 0.0232 |
+| conic-geometry conjecture d(d+1)/4 | **no / no / no** | 0.0279 / 0.0247 / 0.0198 |
+| finite-size fit to d ≤ 24 | yes / yes / yes | 0.0256 / 0.0220 / 0.0190 |
+| Muse Spark | yes / yes / yes | 0.0256 / 0.0220 / 0.0191 |
+
+At these sizes the edge sits just above d²/4, by a few points and roughly a
+constant rather than the d/4 shift the statistical dimension d(d+1)/4 would
+suggest: our own sealed conjecture is falsified for the centre at all three
+targets. Muse Spark's sealed extrapolation and the finite-size fit put every
+target inside its interval. The window width grows a little faster than d over
+this range and far slower than d², so the transition sharpens relative to d².
+Numerical evidence at finite size, not a proof about the limit.
+
+### Open problem P2: does the agent's sealed law carry the physics?
+
+Protocol of Ning et al. (CMU, arXiv 2610.00314), run on our 19 agent episodes.
+A fresh Muse Spark forecaster with a Python sandbox predicts each episode's
+held-out tests.
+
+| forecaster is given | median forecast error |
+|---|---|
+| the description only | 49.8% |
+| the agent's sealed law | 19.0% |
+| the true law, fitted to the same measurements (control) | 3.6% |
+
+The agent's law lowers the forecast error by a median 20.4 points (95%
+bootstrap CI 3.3 to 28.4; n = 16; positive in 75% of episodes); the true law
+would lower it a further 45.3 points (CI 1.3 to 52.0; n = 13). Nine of 57
+forecaster calls returned no usable forecast and are excluded. Unlike the
+agents studied by Ning et al., whose explanations showed no confirmed
+predictive gain, these sealed laws transfer real predictive information; most
+of the remaining error is what the reasoning step left out.
+
 ## Provenance
 
 Everything in this repository was built during the hackathon window (from

@@ -121,8 +121,8 @@ def forecast(model, run_dir: str, arm: str, info: dict, max_tool_turns: int = 6)
                 msgs.append({"role": "tool", "tool_call_id": c.id, "content": run_python(code, sandbox)})
         msgs.append({"role": "user", "content": "Now give the JSON forecast only."})
         obj = None
-        for _ in range(2):
-            out = model.chat(msgs, response_format={"type": "json_object"})
+        for _ in range(3):
+            out = model.chat(msgs, response_format={"type": "json_object"}, max_tokens=12000)
             obj = _extract_json(out.content or "")
             if obj and obj.get("predictions"):
                 break
@@ -144,10 +144,14 @@ def _boot(xs, n=2000, seed=0):
 
 
 def run(model_factory, runs: str = "runs", workers: int = 4, out: str = "runs/open_problems/predictive_credit.jsonl",
-        limit: int | None = None) -> dict:
+        limit: int | None = None, only_missing: bool = False) -> dict:
     eps = find_episodes(runs)[:limit]
     infos = {d: cards(d, runs) for d in eps}
     jobs = [(d, arm) for d in eps for arm in ARMS]
+    if only_missing and os.path.exists(out):
+        done = {(r["episode"], r["arm"]) for r in map(json.loads, open(out)) if r.get("error") is not None}
+        jobs = [j for j in jobs if j not in done]
+        print(f"re-running {len(jobs)} arms that have no forecast yet")
     os.makedirs(os.path.dirname(out), exist_ok=True)
 
     def work(job):
@@ -162,8 +166,8 @@ def run(model_factory, runs: str = "runs", workers: int = 4, out: str = "runs/op
         return r
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        rows = list(ex.map(work, jobs))
-    return summarise(rows)
+        list(ex.map(work, jobs))
+    return summarise([json.loads(l) for l in open(out)])     # every row ever written; latest success per arm
 
 
 def summarise(rows: list[dict]) -> dict:
@@ -172,10 +176,12 @@ def summarise(rows: list[dict]) -> dict:
         if r.get("error") is not None:
             by.setdefault(r["episode"], {})[r["arm"]] = r["error"]
             by[r["episode"]]["channel"] = r["channel"]
+    attempted = {(r["episode"], r["arm"]) for r in rows}
+    missing = sorted(a for a in attempted if a[1] not in by.get(a[0], {}))
     credit = [v["description"] - v["agent_card"] for v in by.values() if {"description", "agent_card"} <= v.keys()]
     gap = [v["agent_card"] - v["reference"] for v in by.values() if {"agent_card", "reference"} <= v.keys()]
     med = lambda a: [float(np.median([v[a] for v in by.values() if a in v]))] if any(a in v for v in by.values()) else [None]  # noqa: E731
-    out = {"episodes": len(by),
+    out = {"episodes": len(by), "arms_without_forecast": len(missing),
            "median_error": {a: med(a)[0] for a in ARMS},
            "predictive_credit": {"median": float(np.median(credit)) if credit else None, "ci95": _boot(credit),
                                  "n": len(credit), "share_positive": float(np.mean(np.array(credit) > 0)) if credit else None},
@@ -190,8 +196,9 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--out", default="runs/open_problems/predictive_credit.jsonl")
+    ap.add_argument("--only-missing", action="store_true", help="re-run only arms that produced no forecast")
     a = ap.parse_args()
-    s = run(lambda: ChatModel(a.model), workers=a.workers, out=a.out, limit=a.limit)
+    s = run(lambda: ChatModel(a.model), workers=a.workers, out=a.out, limit=a.limit, only_missing=a.only_missing)
     print(json.dumps(s, indent=1))
 
 

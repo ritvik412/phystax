@@ -436,3 +436,23 @@ d = 6, 8, 10, 12, sealed target d = 16. Measured n50/d²: 0.3205, 0.3025,
 predictions for d = 16: asymptotic d²/4 = 64 (outside the measured 95%
 interval; measured 67.6); finite-size fit 66.6 (inside). Pilot only; the full
 run uses larger d, more trials, and Muse Spark as a third sealed predictor.
+
+## Nov 4: open-problem results
+
+**P1.** Sealed before the targets: asymptotic d²/4, a finite-size fit to
+d = 8–24, Muse Spark, and the conic-geometry conjecture d(d+1)/4 (sealed in a
+separate ledger before target measurement). Measured n50 (95% CI): d = 30 227.5
+[224.9, 229.8], d = 36 326.1 [323.0, 329.4], d = 44 490.0 [484.5, 494.0]. The
+conjecture's centre missed all three intervals (it overshoots by about d/4);
+the asymptotic missed d = 44; the fit and Muse Spark hit all three. Best Brier
+at d = 44: fit 0.0190, Muse Spark 0.0191, conjecture 0.0198, step 0.0232. The
+first full run crashed when Muse Spark returned an empty message; the resumed
+run reused the finished calibration (ledger: protocol, calibration, resumed,
+sealed_predictions, target_measurements, grade). A first launch with 200
+multi-threaded workers overloaded the shared machine (load average ~5,900)
+and was stopped; reruns used single-threaded workers.
+
+**P2.** 19 episodes, 57 forecaster calls, 9 without a usable forecast after
+one retry. Median forecast error: description 49.8%, agent law 19.0%, true law
+3.6%. Credit 20.4 points [3.3, 28.4], n = 16; gap to the true law 45.3 points
+[1.3, 52.0], n = 13.

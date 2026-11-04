@@ -27,3 +27,8 @@ Stated up front, so results are read for what they are.
 - **Real-footage tracking.** Real-clip results use a colour tracker, not SAM;
   at 80–90° pendulum releases the tracking degrades (period errors 5–15×
   larger), and the amplitude-dependence test fails there.
+- **P1 is finite-size evidence.** Dimensions up to 44, 80 trials per point,
+  interior-point SDP feasibility with a 1e-6 margin tolerance. Nothing here
+  proves a statement about the limit n/d² → 1/4.
+- **P2 coverage.** Nine of 57 forecaster calls returned no usable forecast;
+  results use the episodes with forecasts in both compared arms (n = 16 and 13).

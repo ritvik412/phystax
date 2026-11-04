@@ -23,8 +23,9 @@ grades it on conditions it never tried."
 **1:10–1:35 · Where the error comes from, and what the law is worth** (bars)
 "Because we know the truth, every error splits into camera, experiments and
 reasoning. The camera costs almost nothing; the error is reasoning. And when a
-fresh forecaster gets the agent's law, its predictions improve by [P2 credit],
-but the true law would improve them by [P2 gap] more."
+fresh forecaster gets the agent's sealed law, its error drops from fifty
+percent to nineteen. The law carries real physics; the true law would get it to
+under four."
 
 **1:35–1:55 · SAM 3.1 as an instrument** (naming table, coverage rows)
 "Sub-pixel away from edges, five to eight times worse at them; names fail where
@@ -34,10 +35,11 @@ overconfident."
 **1:55–2:35 · An open problem from Meta's research** (P1 chart and table)
 "Meta's paper proves that an ellipsoid through n random points in d dimensions
 exists below d²/4 and fails above, and leaves the edge open. We measured the
-edge, and before computing larger dimensions we sealed four predictions,
-including a conjecture from conic geometry: the edge sits at d(d+1)/4. Here is
-how each one did. [Read the result honestly: which predictor won at d = 30, 36,
-44.] Evidence, not a proof."
+edge, and before computing larger dimensions we sealed four predictions. My own
+conjecture, from conic geometry, was wrong: the edge sits only a few points
+above d²/4, not d/4 above it. Muse Spark's sealed prediction landed inside the
+measured interval at all three dimensions. Evidence, not a proof, and a
+conjecture that failed in public."
 
 **2:35–2:50 · Real lab footage** (pendulum)
 "And on seven real pendulum clips from the IRIS benchmark, the damping is never
