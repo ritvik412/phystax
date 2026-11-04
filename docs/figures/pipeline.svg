@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="960" height="300" rx="16" fill="#1c1c1e"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#a1a1a6"/></marker></defs>
+  <g font-size="13" fill="#f5f5f7">
+    <g transform="translate(24,70)"><rect width="140" height="84" rx="10" fill="#242426" stroke="#38383a"/>
+      <text x="70" y="34" text-anchor="middle" font-weight="600">Universe</text>
+      <text x="70" y="54" text-anchor="middle" fill="#a1a1a6" font-size="11">hidden, non-textbook</text>
+      <text x="70" y="69" text-anchor="middle" fill="#a1a1a6" font-size="11">force law</text></g>
+    <g transform="translate(200,70)"><rect width="140" height="84" rx="10" fill="#242426" stroke="#38383a"/>
+      <text x="70" y="34" text-anchor="middle" font-weight="600">Camera video</text>
+      <text x="70" y="54" text-anchor="middle" fill="#a1a1a6" font-size="11">rendered, or your</text>
+      <text x="70" y="69" text-anchor="middle" fill="#a1a1a6" font-size="11">webcam / IRIS footage</text></g>
+    <g transform="translate(376,70)"><rect width="140" height="84" rx="10" fill="#242426" stroke="#0a84ff"/>
+      <text x="70" y="34" text-anchor="middle" font-weight="600">SAM 3.1</text>
+      <text x="70" y="54" text-anchor="middle" fill="#a1a1a6" font-size="11">tracks each object,</text>
+      <text x="70" y="69" text-anchor="middle" fill="#a1a1a6" font-size="11">per-frame confidence</text></g>
+    <g transform="translate(552,70)"><rect width="140" height="84" rx="10" fill="#242426" stroke="#0a84ff"/>
+      <text x="70" y="34" text-anchor="middle" font-weight="600">Muse Spark</text>
+      <text x="70" y="54" text-anchor="middle" fill="#a1a1a6" font-size="11">designs experiments,</text>
+      <text x="70" y="69" text-anchor="middle" fill="#a1a1a6" font-size="11">fits laws in a sandbox</text></g>
+    <g transform="translate(728,70)"><rect width="208" height="84" rx="10" fill="#242426" stroke="#ff9f0a"/>
+      <text x="104" y="34" text-anchor="middle" font-weight="600">Sealed prediction</text>
+      <text x="104" y="54" text-anchor="middle" fill="#a1a1a6" font-size="11">SHA-256 in a hash-chained</text>
+      <text x="104" y="69" text-anchor="middle" fill="#a1a1a6" font-size="11">ledger, before the test exists</text></g>
+  </g>
+  <g stroke="#a1a1a6" stroke-width="1.6" fill="none" marker-end="url(#a)">
+    <path d="M164,112 H198"/><path d="M340,112 H374"/><path d="M516,112 H550"/><path d="M692,112 H726"/>
+    <path d="M622,70 C622,30 94,30 94,68" stroke-dasharray="5 5"/>
+    <path d="M832,154 V214 H560"/>
+  </g>
+  <text x="358" y="24" font-size="12" fill="#a1a1a6" text-anchor="middle">next experiment, within a budget</text>
+  <g transform="translate(320,190)"><rect width="238" height="56" rx="10" fill="#242426" stroke="#30d158"/>
+    <text x="119" y="24" text-anchor="middle" font-size="13" font-weight="600" fill="#f5f5f7">Reality grades it</text>
+    <text x="119" y="42" text-anchor="middle" font-size="11" fill="#a1a1a6">deterministic; no model judges</text></g>
+  <text x="24" y="282" font-size="12" fill="#a1a1a6">Because the truth is known, every error splits exactly: measurement (the camera) + design (its experiments) + reasoning (its choice of law).</text>
+</svg>

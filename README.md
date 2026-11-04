@@ -26,6 +26,29 @@ way NewtonBench is now used as an RL environment in NVIDIA NeMo Gym.
 
 Built for the Meta Global AI Developer Hackathon (Push the Frontier theme), Oct 26 to Nov 4, 2026.
 
+### At a glance
+
+- **Live results site:** https://huggingface.co/spaces/ritvik360/phystax
+  (the live webcam mode `/live` and the simulator `/lab` run locally:
+  `pip install -r requirements.txt && uvicorn phystax.web.app:app`, with
+  `MODEL_API_KEY` in `.env`; the demo video shows both).
+- **The camera is not the bottleneck; reasoning is.** Through SAM 3.1,
+  measurement is about 3% of the agent's error; the rest is its choice of law.
+- **The agent's sealed law carries real physics:** a fresh forecaster's error
+  drops from 49.8% to 19.0% when given it (Predictive Credit, CMU protocol).
+- **An open problem from Meta's research:** at the edge of Gaussian ellipsoid
+  fitting, Muse Spark's sealed predictions landed inside the measured interval
+  at d = 30, 36 and 44; our own sealed conjecture was falsified.
+- **SAM 3.1 measured as an instrument:** sub-pixel in the interior, 5–8×
+  worse at image borders, brittle to object names but not to taps or boxes.
+- **Real lab footage (IRIS):** exponential damping, assumed by the benchmark's
+  ground truth, is rejected in 7 of 7 pendulum clips.
+
+| Open problem | Source | Where in this repo |
+|---|---|---|
+| P1. The edge of Gaussian ellipsoid fitting (left open at n/d² → 1/4) | Arslan with Muse Spark, *The Strict Threshold for Gaussian Ellipsoid Fitting* (Meta AI Research, 2026); [blog](https://research.meta.ai/blog/solving-open-research-problems-together) | `phystax/open_problems/ellipsoid*.py`, results below |
+| P2. Do an AI scientist's explanations carry predictive information? | Ning, Li, Kong, Li, *Predictive Credit* (CMU, [arXiv 2610.00314](https://huggingface.co/papers/2610.00314)) | `phystax/open_problems/predictive_credit.py` |
+
 ---
 
 ## Contents
@@ -211,15 +234,7 @@ measurement error, which is not the world labs live in.
 
 PhysTax puts the instrument back:
 
-```
-agent chooses an experiment
-   -> the hidden-law universe runs it and renders a video
-   -> SAM 3.1 tracks each object in the video (with per-frame confidence)
-   -> the agent fits candidate laws in a Python sandbox
-   -> repeat, within a budget
-   -> agent seals a prediction for new starting conditions (hashed, logged)
-   -> the universe runs the test; a deterministic grader scores the prediction
-```
+![PhysTax pipeline: universe, camera, SAM 3.1, Muse Spark, sealed prediction, graded by reality](docs/figures/pipeline.svg)
 
 Run the identical episode with exact coordinates instead of the camera, and the
 difference in the grade is the perception tax.
@@ -470,11 +485,11 @@ API facts this code relies on, checked against Meta's docs and cookbooks:
 - The two-phase loop, the ledger, the grader, and the web UI run end to end
   with a scripted model and with the synthetic SAM stand-in.
 
-**Not yet verified (needs your keys; this is Days 1 to 3):**
-
-- Real SAM 3.1 latency, confidence behaviour and accuracy on these renders.
-- Real Muse Spark / Spark Open tool-calling behaviour in this loop
-  (`reasoning_effort` and `json_object` acceptance are assumptions to check).
+**Verified with the real APIs (see Results):** SAM 3.1 accuracy, confidence
+behaviour and failure modes on 432 tracks; 18 Muse Spark episodes with sealed
+predictions; 252 reference fits; 7 real IRIS pendulum clips; P1 and P2; live
+webcam runs. Muse Glimmer serving is scripted but was not run (GPU driver too
+old for the required CUDA version).
 
 ### Offline pilot (reference fitter, no LLM)
 
@@ -690,3 +705,8 @@ setting.
 - Predictive Credit: Measuring What Scientific Explanations Add to Experimental Forecasts (CMU, 2026): https://huggingface.co/papers/2610.00314
 - Sharpening Tax in Post-Training (Meta, 2026): https://huggingface.co/papers/2610.01509
 - Gneiting & Raftery, Strictly Proper Scoring Rules, Prediction, and Estimation (JASA, 2007)
+- A. Arslan with Muse Spark, *The Strict Threshold for Gaussian Ellipsoid Fitting* (Meta AI Research, 2026)
+- Misiakiewicz & Wen, arXiv 2608.10184; de la Cerda, Potechin, Tulsiani & Xu, arXiv 2608.12415; Koehler & Sohn, arXiv 2608.27372 (concurrent threshold proofs)
+- Amelunxen, Lotz, McCoy & Tropp, *Living on the edge: phase transitions in convex programs* (2014)
+- IRIS: A Real-World Benchmark for Inverse Recovery and Identification of Physical Dynamic Systems (ECCV 2026): https://arxiv.org/abs/2603.16432
+- GAUGE (2026): https://arxiv.org/abs/2608.05948
