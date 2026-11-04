@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live experiment</title>
+<style>
+  :root {
+    --bg: #1c1c1e; --raised: #242426; --well: #141415; --line: #38383a;
+    --text: #f5f5f7; --muted: #a1a1a6; --faint: #6e6e73;
+    --measure: #0a84ff; --sealed: #ff9f0a; --pass: #30d158; --fail: #ff6961;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.47 var(--font);
+         font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px 96px; }
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 24px 0 0; }
+  header a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  h1 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.08; letter-spacing: -0.026em; font-weight: 600; margin: 56px 0 0; max-width: 20ch; }
+  .lede { color: var(--muted); font-size: 19px; max-width: 62ch; margin: 16px 0 0; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 32px; margin-top: 40px; align-items: start; }
+  .stage { position: relative; background: var(--well); border-radius: 14px; overflow: hidden; aspect-ratio: 16 / 9; }
+  .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .stage canvas { pointer-events: none; }
+  .stage.tappable { cursor: crosshair; }
+  .count { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+           font-size: 120px; font-weight: 600; letter-spacing: -0.04em; }
+  .count.on { display: flex; }
+  .rec { position: absolute; top: 16px; left: 16px; display: none; font-size: 15px; }
+  .rec.on { display: block; }
+  .rec i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--fail); margin-right: 8px; }
+  .side h2 { font-size: 20px; letter-spacing: -0.01em; font-weight: 600; margin: 0 0 8px; }
+  .side p { color: var(--muted); font-size: 15px; margin: 0 0 16px; }
+  label { display: block; font-size: 15px; margin: 16px 0 8px; }
+  input[type=number], select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+         background: var(--raised); color: var(--text); font: inherit; }
+  input[type=range] { width: 100%; accent-color: var(--measure); }
+  .check { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; margin-top: 16px; }
+  .check input { margin-top: 4px; accent-color: var(--measure); }
+  button { all: unset; display: block; text-align: center; width: 100%; box-sizing: border-box; padding: 12px 16px;
+           border-radius: 10px; background: var(--text); color: var(--bg); font-weight: 600; cursor: pointer; margin-top: 16px; }
+  button.quiet { background: var(--raised); color: var(--text); font-weight: 500; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--measure); outline-offset: 3px; }
+  .hint { color: var(--muted); font-size: 15px; margin-top: 12px; min-height: 44px; }
+  .err { color: var(--fail); }
+  .result { display: none; margin-top: 32px; }
+  .result.on { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 40px; }
+  .big { font-size: clamp(48px, 7vw, 80px); line-height: 1; letter-spacing: -0.04em; font-weight: 600; }
+  .hash { font: 14px/1.6 var(--mono); color: var(--sealed); word-break: break-all; margin-top: 8px; }
+  .meta { color: var(--muted); font-size: 15px; margin-top: 12px; }
+  .legend { display: flex; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: -1px; }
+  input[type=file] { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .readout { display: flex; gap: 32px; margin-top: 16px; font-size: 15px; color: var(--muted); }
+  .readout b { color: var(--text); font-weight: 500; display: block; font-size: 22px; letter-spacing: -0.01em; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+  .charts figure { margin: 0; } .charts figcaption { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  svg text { fill: var(--muted); font: 11px var(--font); }
+  .ctl { display: flex; gap: 12px; margin-top: 12px; }
+  .ctl button { width: auto; margin: 0; padding: 8px 14px; font-size: 14px; }
+  @media (max-width: 860px) { .grid, .charts { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><strong>PhysTax</strong><a href="/">Back to the lab</a></header>
+  <h1>Bring your own experiment.</h1>
+  <p class="lede">Toss, drop, swing or roll something in front of a still camera. SAM 3.1 tracks it from one tap. Muse
+     Spark sees the first half of the motion, decides what kind of motion it is, and seals a prediction for the second
+     half before reading it. Then the video shows what really happened.</p>
+
+  <div class="grid">
+    <div>
+      <div class="stage" id="stage">
+        <video id="cam" muted playsinline autoplay></video>
+        <video id="clip" muted playsinline loop style="display:none"></video>
+        <canvas id="ov"></canvas>
+        <div class="count" id="count"></div>
+        <div class="rec" id="rec"><i></i>Recording</div>
+      </div>
+      <input type="range" id="scrub" min="0" max="4" step="0.0333" value="0" style="display:none; margin-top:16px" aria-label="Frame">
+      <p class="hint" id="hint">Allow camera access to begin. Prop the camera so it does not move; a plain background
+         and good light help. The object must move on its own: release it, do not carry it.</p>
+      <div class="legend" id="legend"></div>
+      <div class="ctl" id="ctl" style="display:none"><button class="quiet" id="pp">Pause</button>
+        <button class="quiet" id="speed">Half speed</button></div>
+      <div class="readout" id="readout" style="display:none">
+        <div>Time<b id="ro-t">0.00 s</b></div><div>Phase<b id="ro-phase">observing</b></div><div>Speed<b id="ro-v">–</b></div></div>
+      <div class="charts" id="charts" style="display:none">
+        <figure><div id="ch-x"></div><figcaption>Horizontal position over time</figcaption></figure>
+        <figure><div id="ch-y"></div><figcaption>Height over time</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="side">
+      <h2 id="step-title">1. Record</h2>
+      <p id="step-text">Point the camera at where the motion will happen. Recording starts after a short countdown.</p>
+      <label for="secs">Length</label>
+      <select id="secs"><option value="3">3 seconds</option><option value="4" selected>4 seconds</option><option value="6">6 seconds</option></select>
+      <button id="record">Record</button>
+      <label for="upload">Or upload a clip (phone slow motion works well)</label>
+      <input type="file" id="upload" accept="video/*">
+      <label for="cm">Object size in cm (optional, gives acceleration in m/s²)</label>
+      <input type="number" id="cm" min="0" step="0.1" placeholder="e.g. 6.7 for a tennis ball">
+      <p class="hint" style="min-height:0">The prediction is sealed halfway through the tracked motion. That point is
+         fixed in advance, so no run can be tuned after seeing the result.</p>
+      <div class="check"><input type="checkbox" id="agent" checked><label for="agent" style="margin:0">Let Muse Spark choose the law
+        (otherwise the lowest BIC wins)</label></div>
+      <button id="measure" disabled>Measure</button>
+      <button id="again" class="quiet" style="display:none">Run another</button>
+    </div>
+  </div>
+
+  <div class="result" id="result">
+    <div><div class="meta">Sealed prediction</div><div class="hash" id="r-hash"></div>
+      <p class="meta" id="r-laws"></p><p class="meta" id="r-why"></p></div>
+    <div><div class="big" id="r-err"></div><p class="meta" id="r-grade"></p><p class="meta" id="r-scale"></p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const cam = $("cam"), clip = $("clip"), ov = $("ov"), ctx = ov.getContext("2d"), stage = $("stage");
+  let stream = null, blob = null, tap = null, recordedSecs = 4, raf = 0;
+
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+      cam.srcObject = stream;
+      $("hint").textContent = "Camera ready. Press Record, then do the experiment after the countdown.";
+    } catch (e) {
+      $("hint").innerHTML = `<span class="err">No camera access (${e.name}). You can still upload a clip.</span>`;
+    }
+  }
+  startCamera();
+
+  function setStep(title, text) { $("step-title").textContent = title; $("step-text").textContent = text; }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  $("record").onclick = async () => {
+    if (!stream) return;
+    recordedSecs = +$("secs").value;
+    $("record").disabled = true;
+    for (const n of [3, 2, 1]) { $("count").textContent = n; $("count").classList.add("on"); await sleep(800); }
+    $("count").classList.remove("on");
+    const types = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+    const mime = types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 6e6 } : undefined);
+    const chunks = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    rec.start(); $("rec").classList.add("on");
+    await sleep(recordedSecs * 1000);
+    rec.stop(); $("rec").classList.remove("on");
+    await new Promise((r) => (rec.onstop = r));
+    blob = new Blob(chunks, { type: mime || "video/webm" });
+    await prepare(blob, "recording.webm");
+  };
+
+  $("upload").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    blob = f; await prepare(f, f.name);
+  };
+
+  let job = null;
+  async function prepare(b, name) {
+    $("hint").textContent = "Preparing the clip.";
+    const fd = new FormData(); fd.append("video", b, name);
+    const r = await fetch("/api/live/prepare", { method: "POST", body: fd });
+    if (!r.ok) { $("hint").innerHTML = `<span class="err">${(await r.json()).detail || "Could not read the video."}</span>`; $("record").disabled = false; return; }
+    job = await r.json();
+    showForTap(job.clip, job.frames / job.fps);
+  }
+
+  function fitStage(w, h) { stage.style.aspectRatio = `${w} / ${h}`; ov.width = w; ov.height = h; }
+
+  function showForTap(url, secs) {
+    cam.style.display = "none"; clip.style.display = "block"; clip.loop = false; clip.src = url; clip.pause();
+    tap = null; $("measure").disabled = true; ctx.clearRect(0, 0, ov.width, ov.height);
+    clip.onloadedmetadata = () => {
+      fitStage(clip.videoWidth, clip.videoHeight);
+      const d = isFinite(clip.duration) && clip.duration > 0 ? clip.duration : (secs || 8);
+      $("scrub").max = d; $("scrub").value = 0; $("scrub").style.display = "block";
+    };
+    $("scrub").oninput = () => { clip.currentTime = +$("scrub").value; };
+    stage.classList.add("tappable");
+    setStep("2. Tap the object", "Slide to the first frame where the object is moving on its own (already released), then tap its centre.");
+    $("hint").textContent = "Tap the moving object.";
+  }
+
+  stage.addEventListener("click", (e) => {
+    if (!stage.classList.contains("tappable")) return;
+    const r = clip.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    tap = { x, y, w: r.width, h: r.height, frame: Math.min(job.frames - 1, Math.round(clip.currentTime * job.fps)) };
+    ctx.clearRect(0, 0, ov.width, ov.height);
+    const sx = ov.width / r.width, sy = ov.height / r.height;
+    ctx.strokeStyle = css("--measure"); ctx.lineWidth = 3 * sx;
+    ctx.beginPath(); ctx.arc(x * sx, y * sy, 18 * sx, 0, 2 * Math.PI); ctx.stroke();
+    $("measure").disabled = false;
+    setStep("3. Measure", "SAM 3.1 tracks the object from the frame you tapped. The prediction is sealed before the rest of the track is read.");
+    $("hint").textContent = `Object marked on frame ${tap.frame}. Press Measure.`;
+  });
+
+  $("measure").onclick = async () => {
+    if (!job || !tap) return;
+    $("measure").disabled = true; stage.classList.remove("tappable");
+    const fd = new FormData();
+    fd.append("tap_frame", tap.frame); fd.append("tap_x", tap.x); fd.append("tap_y", tap.y);
+    fd.append("view_w", tap.w); fd.append("view_h", tap.h);
+    fd.append("object_cm", $("cm").value || 0); fd.append("agent", $("agent").checked);
+    fd.append("tracker", new URLSearchParams(location.search).get("tracker") || "sam");
+    const t0 = Date.now();
+    const r = await fetch(`/api/live/${job.id}/run`, { method: "POST", body: fd });
+    if (!r.ok) { $("hint").innerHTML = `<span class="err">${(await r.json()).detail}</span>`; return; }
+    while (true) {
+      await sleep(1500);
+      const j = await (await fetch(`/api/live/${job.id}`)).json();
+      if (j.status === "done") { showResult(job.id, j.result); return; }
+      if (j.status === "error") { $("hint").innerHTML = `<span class="err">${j.error}</span>`; $("again").style.display = "block"; return; }
+      $("hint").textContent = `SAM 3.1 is tracking, then the scientist chooses, seals and is graded (${Math.round((Date.now() - t0) / 1000)} s; usually 20 to 60 s).`;
+    }
+  };
+
+  function showResult(id, R) {
+    clip.src = `/livefiles/${id}/clip.mp4`; clip.loop = true; $("scrub").style.display = "none";
+    clip.onloadedmetadata = () => { fitStage(R.size[0], R.size[1]); clip.playbackRate = 0.5; clip.play(); draw(R); };
+    setStep("4. What really happened", "Blue: what the scientist saw. Orange: what it sealed for the rest. Grey: what the object actually did.");
+    $("hint").textContent = "";
+    $("legend").innerHTML = `<span><i style="background:${css("--measure")}"></i>SAM 3.1 track, seen before sealing</span>
+      <span><i style="background:${css("--sealed")}"></i>sealed prediction (80% band)</span><span><i style="background:${css("--faint")}"></i>what happened</span>`;
+    ["ctl", "readout", "charts"].forEach((k) => ($(k).style.display = ""));
+    $("pp").onclick = () => { if (clip.paused) { clip.play(); $("pp").textContent = "Pause"; } else { clip.pause(); $("pp").textContent = "Play"; } };
+    $("speed").onclick = () => { clip.playbackRate = clip.playbackRate === 1 ? 0.5 : 1; $("speed").textContent = clip.playbackRate === 1 ? "Half speed" : "Normal speed"; };
+    const g = R.grade;
+    $("r-hash").textContent = R.sha256;
+    $("r-laws").textContent = `The scientist's call: ${R.model_text}. Chosen by ${R.chosen_by}; sealed at
+      ${new Date(R.sealed_at * 1000).toISOString().slice(11, 19)} UTC, before frames ${R.split_frame + 1} onward were read.`;
+    $("r-why").textContent = R.rationale ? `"${R.rationale}"` : "";
+    $("r-err").textContent = (100 * g.error_share_of_path).toFixed(1) + "%";
+    $("r-err").style.color = g.pass ? css("--pass") : css("--fail");
+    $("r-grade").textContent = `Prediction error as a share of the path (${g.rmse_px.toFixed(1)} px). Under 5% passes.
+      The 80% band held the truth ${Math.round(100 * g.coverage_80)}% of the time.`;
+    $("r-scale").textContent = R.scale && R.scale.vertical_acceleration_m_s2 != null
+      ? `Vertical acceleration from the fit: ${R.scale.vertical_acceleration_m_s2.toFixed(2)} m/s² (g is 9.81; perspective and the size estimate both matter).` : "";
+    $("result").classList.add("on"); $("again").style.display = "block";
+    charts(R);
+  }
+
+  function charts(R) {
+    const T = (f) => f / R.fps, S = R.sealed;
+    const draw1 = (el, key, band) => {
+      const w = 420, h = 200, m = { l: 40, r: 8, t: 10, b: 24 };
+      const seen = [], real = [];
+      for (let f = R.first_frame; f <= R.last_frame; f++) {
+        const v = R.track[key][f]; if (v == null) continue;
+        (f <= R.split_frame ? seen : real).push([T(f), v]);
+      }
+      const pred = S.frames.map((f, i) => [T(f), S[key][i], S[band][i]]);
+      const all = [...seen, ...real].map((p) => p[1]).concat(pred.map((p) => p[1] + p[2]), pred.map((p) => p[1] - p[2]));
+      const t0 = T(R.first_frame), t1 = T(R.last_frame), lo = Math.min(...all), hi = Math.max(...all);
+      const sx = (t) => m.l + (t - t0) / (t1 - t0 || 1) * (w - m.l - m.r), sy = (v) => h - m.b - (v - lo) / (hi - lo || 1) * (h - m.t - m.b);
+      const line = (pts, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2" ${dash ? 'stroke-dasharray="4 4"' : ""} points="${pts.map((p) => sx(p[0]) + "," + sy(p[1])).join(" ")}"/>`;
+      const bandPath = pred.length ? `<polygon fill="${css("--sealed")}" fill-opacity="0.15" points="${pred.map((p) => sx(p[0]) + "," + sy(p[1] + p[2])).join(" ")} ${pred.slice().reverse().map((p) => sx(p[0]) + "," + sy(p[1] - p[2])).join(" ")}"/>` : "";
+      el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%">${bandPath}
+        <line x1="${sx(T(R.split_frame))}" x2="${sx(T(R.split_frame))}" y1="${m.t}" y2="${h - m.b}" stroke="${css("--faint")}" stroke-dasharray="2 4"/>
+        <text x="${sx(T(R.split_frame)) + 4}" y="${m.t + 10}">sealed</text>
+        ${line(seen, css("--measure"))}${line(real, css("--faint"), true)}${line(pred.map((p) => [p[0], p[1]]), css("--sealed"))}
+        <text x="${m.l}" y="${h - 6}">${t0.toFixed(1)} s</text><text x="${w - m.r}" y="${h - 6}" text-anchor="end">${t1.toFixed(1)} s</text></svg>`;
+    };
+    draw1($("ch-x"), "x", "band_x"); draw1($("ch-y"), "y", "band_y");
+  }
+
+  function draw(R) {
+    cancelAnimationFrame(raf);
+    const H = R.size[1], tx = R.track.x, ty = R.track.y, S = R.sealed, B = R.boxes || [];
+    const unit = R.scale ? "m/s" : "px/s", k = R.scale ? 1 / R.scale.px_per_m : 1;
+    const tick = () => {
+      const f = Math.min(R.frames - 1, Math.floor(clip.currentTime * R.fps));
+      ctx.clearRect(0, 0, ov.width, ov.height); ctx.lineWidth = 3;
+      const path = (from, to, color, dash) => {
+        ctx.strokeStyle = color; ctx.setLineDash(dash || []); ctx.beginPath(); let pen = false;
+        for (let j = from; j <= Math.min(to, f); j++) {
+          if (tx[j] == null) { pen = false; continue; }
+          if (!pen) { ctx.moveTo(tx[j], H - ty[j]); pen = true; } else ctx.lineTo(tx[j], H - ty[j]);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+      };
+      path(R.first_frame, R.split_frame, css("--measure"));
+      if (f > R.split_frame) {
+        path(R.split_frame, R.last_frame, css("--faint"), [6, 6]);
+        ctx.fillStyle = css("--sealed"); ctx.strokeStyle = css("--sealed"); ctx.lineWidth = 1.5;
+        S.frames.forEach((fr, i) => {
+          if (fr > f + 6) return;
+          if (i % 4 === 0) ctx.strokeRect(S.x[i] - S.band_x[i], H - S.y[i] - S.band_y[i], 2 * S.band_x[i], 2 * S.band_y[i]);
+          ctx.beginPath(); ctx.arc(S.x[i], H - S.y[i], 4, 0, 2 * Math.PI); ctx.fill();
+        });
+        ctx.fillStyle = "rgba(20,20,21,.8)"; ctx.fillRect(12, 12, 230, 34);
+        ctx.fillStyle = css("--sealed"); ctx.font = "600 16px -apple-system, Helvetica, Arial"; ctx.fillText("Prediction sealed", 24, 35);
+      }
+      if (B[f]) {
+        const [l, t, r, b] = B[f];
+        ctx.strokeStyle = css("--measure"); ctx.lineWidth = 2.5; ctx.strokeRect(l, t, r - l, b - t);
+        ctx.fillStyle = css("--measure"); ctx.font = "600 13px -apple-system, Helvetica, Arial"; ctx.fillText("SAM 3.1", l, Math.max(14, t - 6));
+      }
+      $("ro-t").textContent = (f / R.fps).toFixed(2) + " s";
+      $("ro-phase").textContent = f < R.first_frame ? "waiting" : f <= R.split_frame ? "observing" : "sealed: reality vs prediction";
+      $("ro-v").textContent = R.speed && R.speed[f] != null ? (R.speed[f] * k).toFixed(R.scale ? 2 : 0) + " " + unit : "–";
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  $("again").onclick = () => { location.reload(); };
+  window.PHYSTAX_LIVE = { showResult };    // for scripted checks
+})();
+</script>
+</body>
+</html>

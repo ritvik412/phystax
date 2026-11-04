@@ -417,3 +417,22 @@ each setting, and the same analysis on SAM 3.1 tracks.
 - T0 rises slightly with release angle (1.440 → 1.448 s), which a correct
   amplitude correction should remove; residual large-angle tracking or
   correction error is the likely cause. Reported, not explained away.
+
+## Nov 3: live mode redesign and the first open problem
+
+**Live mode.** First real webcam trials failed in two ways: (1) the tapped frame
+index came from the browser's variable-frame-rate recording while SAM was
+prompted on the converted clip, so the tap pointed at the wrong frame ("0
+frames tracked"); (2) a hand-held phone is not free motion, and per-axis
+flexible fits (damped oscillation) extrapolated into meaningless curves. Fixes:
+the clip is converted first and the user taps on exactly that clip; the
+scientist chooses between joint physical situations (free flight, constant
+velocity, uniform acceleration, swing); the seal point is fixed at 50% in
+advance; the view shows SAM's box, a speed readout, and position-time charts.
+
+**P1 pilot (Gaussian ellipsoid fitting).** 30 trials per point, calibration
+d = 6, 8, 10, 12, sealed target d = 16. Measured n50/d²: 0.3205, 0.3025,
+0.2787, 0.2676, then 0.2639 at d = 16, approaching 1/4 from above. Sealed
+predictions for d = 16: asymptotic d²/4 = 64 (outside the measured 95%
+interval; measured 67.6); finite-size fit 66.6 (inside). Pilot only; the full
+run uses larger d, more trials, and Muse Spark as a third sealed predictor.

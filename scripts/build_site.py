@@ -24,6 +24,8 @@ from statistics import median
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import sys  # noqa: E402
+sys.path.insert(0, ROOT)
 TEMPLATE = os.path.join(ROOT, "phystax", "web", "site", "index.html")
 
 # Recorded probe (docs/RESEARCH_AUDIT.md, Oct 29): same frames, different words.
@@ -187,6 +189,43 @@ def episode_payload(run_dir, res, media_dir):
             "cost_usd": res.get("cost_usd")}
 
 
+def open_problem_p1(base="runs/open_problems/ellipsoid"):
+    rp, gp = os.path.join(base, "result.json"), os.path.join(base, "grade_all.json")
+    if not os.path.exists(rp):
+        return None
+    r = json.load(open(rp))
+    g = json.load(open(gp)) if os.path.exists(gp) else None
+    pts = lambda block: [{"d": int(d), "n50": v["n50"], "ci": v["n50_ci"], "width": v["width"],  # noqa: E731
+                          "trials": v["trials"]} for d, v in sorted(block.items(), key=lambda kv: int(kv[0]))]
+    return {"calibration": pts(r["calibration"]), "target": pts(r["target"]),
+            "sealed_sha256": r["sealed_sha256"], "grade": g,
+            "spark": r["sealed"].get("muse_spark", {}).get("formula")}
+
+
+def open_problem_p2(path="runs/open_problems/predictive_credit.jsonl"):
+    if not os.path.exists(path):
+        return None
+    from phystax.open_problems.predictive_credit import summarise
+    return summarise(jsonl(path))
+
+
+def live_example(out_dir, base="runs/live"):
+    best = None
+    for p in glob.glob(os.path.join(base, "*", "result.json")):
+        r = json.load(open(p))
+        key = (not r["grade"]["pass"], r["grade"]["error_share_of_path"])
+        if best is None or key < best[0]:
+            best = (key, os.path.dirname(p), r)
+    if not best:
+        return None
+    _, d, r = best
+    os.makedirs(os.path.join(out_dir, "media"), exist_ok=True)
+    shutil.copy(os.path.join(d, "clip.mp4"), os.path.join(out_dir, "media", "live.mp4"))
+    keep = ("size", "fps", "frames", "track", "split_frame", "first_frame", "last_frame", "model_text",
+            "chosen_by", "rationale", "sealed", "sha256", "sealed_at", "grade", "scale", "boxes")
+    return {"video": "media/live.mp4", **{k: r.get(k) for k in keep}}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="site")
@@ -209,6 +248,9 @@ def main() -> None:
         "naming": NAMING_PROBE,
         "pendulums": pendulums("runs/real/**/pendulum.json"),
         "episode": episode_payload(run_dir, res, os.path.join(a.out, "media")) if run_dir else None,
+        "p1": open_problem_p1(),
+        "p2": open_problem_p2(),
+        "live": live_example(a.out),
         "repo": "https://github.com/ritvik412/phystax",
     }
     with open(os.path.join(a.out, "data.js"), "w") as f:

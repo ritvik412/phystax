@@ -96,3 +96,26 @@ model being evaluated; this is left to future work.
   keeps sub-pixel centroids.
 - We report GAUGE's QFI alongside our BIC model selection
   (`phystax/real/fit.py: qfi`) so law-form results are directly comparable.
+
+## Sources for the open-problem module
+
+- **P1.** A. Arslan with Muse Spark, *The Strict Threshold for Gaussian
+  Ellipsoid Fitting* (Meta AI Research, Oct 2026). Proves feasibility with high
+  probability when lim sup n/d² < 1/4 and infeasibility when lim inf n/d² > 1/4,
+  and states that no claim is made when n/d² → 1/4. The 1/4 is traced to the
+  PSD cone's statistical dimension d(d+1)/4. Concurrent proofs: Misiakiewicz and
+  Wen (arXiv 2608.10184), de la Cerda, Potechin, Tulsiani and Xu (2608.12415),
+  Koehler and Sohn (2608.27372). Earlier: Saunderson, Parrilo and Willsky
+  (2013, conjecture), Maillard and Kunisky (2024, replica prediction), Bandeira
+  and Maillard (2025, approximate fitting). Conic phase transitions:
+  Amelunxen, Lotz, McCoy and Tropp, *Living on the edge* (2014).
+- **P2.** J. Ning, X. Li, Y. Kong and D. Li (CMU), *Predictive Credit: Measuring
+  What Scientific Explanations Add to Experimental Forecasts* (arXiv
+  2610.00314). Agents' explanations showed no confirmed predictive gain over
+  descriptions; a researcher-authored mechanistic explanation did.
+
+What PhysTax contributes to each: P1, a pre-registered numerical study of the
+finite-size window (centre and width) with sealed predictions, including the
+statistical-dimension conjecture; evidence, not a proof. P2, the protocol run
+on AI-scientist laws discovered through a camera, with a known-truth positive
+control.

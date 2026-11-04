@@ -104,6 +104,43 @@ tracker):
 - `parameters.json` is internally inconsistent for the sliding cone (listed
   angle 45° vs 34.6° from its own listed sides).
 
+## Live experiments and open problems
+
+**Bring your own experiment** (`/live` on the lab server). Record a few seconds
+with a webcam or upload a phone clip, tap the object once on the first frame
+where it moves freely, and SAM 3.1 tracks it (point prompt, propagated
+forward; border-touching frames dropped). The scientist (Muse Spark, or the
+lowest BIC) sees the first half of the tracked motion, chooses the physical
+situation (free flight, constant velocity, uniform acceleration, swinging),
+and seals a prediction for the second half in a ledger before reading it. The
+seal point is fixed at 50% in advance. With the object's size it also reports
+speeds and the fitted vertical acceleration in m/s².
+
+**Open problems** (`phystax/open_problems/`). The same measure, seal, then grade
+protocol applied to research questions:
+
+- *P1, Gaussian ellipsoid fitting at finite size*
+  (`python -m phystax.open_problems.ellipsoid --spark`). The threshold
+  n ≈ d²/4 is known asymptotically; behaviour at the threshold is stated as
+  unresolved in Meta's "The Strict Threshold for Gaussian Ellipsoid Fitting".
+  We measure the fitting probability by semidefinite programming, fit the
+  centre n50(d) and width w(d) on small d, seal predictions for larger d from
+  the asymptotic law, a finite-size fit and Muse Spark, then measure and grade.
+  Numerical evidence about finite-size behaviour, not a proof.
+  A fourth, theory-motivated predictor is sealed separately before the
+  targets are computed (`python -m phystax.open_problems.ellipsoid_extra seal`):
+  the PSD cone's statistical dimension, n50(d) = d(d+1)/4, with a window width
+  proportional to d (conic phase transitions, Amelunxen, Lotz, McCoy and
+  Tropp). `ellipsoid_extra grade` scores every sealed predictor on the centre,
+  the width and the Brier score of the whole transition curve.
+- *P2, Predictive Credit* (`python -m phystax.open_problems.predictive_credit`),
+  after Ning et al. (CMU, arXiv 2610.00314): a fresh Muse Spark forecaster,
+  with a Python sandbox, predicts the held-out tests of each finished agent
+  episode in three arms (description only, the agent's sealed law, the
+  reference fitter's law as positive control). Credit = how much the agent's
+  law lowers forecast error; the gap to the reference is what its reasoning
+  left on the table.
+
 ## Provenance
 
 Everything in this repository was built during the hackathon window (from

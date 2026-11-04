@@ -159,3 +159,19 @@ def drop_truncated(tr: Track) -> Track:
     x, y, a, c = tr.x.copy(), tr.y.copy(), tr.area.copy(), tr.conf.copy()
     x[m] = y[m] = a[m] = c[m] = np.nan
     return Track(tr.body, tr.n_frames, x, y, a, c, tr.n_candidates, tr.truncated)
+
+
+def boxes_for_object(records: list, object_id, n_frames: int) -> list:
+    """Per-frame [left, top, right, bottom] in image pixels for one object id
+    (box records first, mask bounds as fallback); None where SAM had nothing."""
+    out = [None] * n_frames
+    for r in records:
+        if r.frame is None or str(r.object_id) != str(object_id):
+            continue
+        f = r.frame.frame_index
+        if f >= n_frames:
+            continue
+        b = r if isinstance(r, SegmentationBoxRecord) else getattr(r, "bounds", None)
+        if b is not None and (out[f] is None or isinstance(r, SegmentationBoxRecord)):
+            out[f] = [int(b.left), int(b.top), int(b.right), int(b.bottom)]
+    return out
