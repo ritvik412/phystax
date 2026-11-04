@@ -330,27 +330,7 @@ practical question for all of them.
 
 ## 4. How one episode works
 
-```mermaid
-sequenceDiagram
-    participant W as World (owns the hidden law)
-    participant A as Agent (Muse Spark)
-    participant S as SAM 3.1
-    participant P as Python sandbox
-    participant L as Ledger
-    W->>L: episode_start + SHA-256 of the hidden law
-    loop up to 6 experiments
-        A->>W: run_experiment(params, duration)
-        W->>W: simulate + render MP4
-        W->>S: one request per body ("ball")
-        S-->>A: per-frame centroid (+ confidence)
-        A->>P: run_python(fit candidate laws)
-        P-->>A: fit results
-    end
-    W-->>A: held-out test starting conditions (revealed only now)
-    A->>L: commit (no tools, strict JSON schema), hashed
-    W->>W: render the test clips
-    W->>L: test_reveal, grade, secret_reveal
-```
+![One episode: World, Muse Spark, SAM 3.1, sandbox and ledger, from the hidden-law hash to the graded reveal](docs/figures/episode.svg)
 
 Why two phases: the Meta Model API accepts `tool_choice: "auto"` only, so a
 final "commit" tool cannot be forced. Exploration ends when the model stops
